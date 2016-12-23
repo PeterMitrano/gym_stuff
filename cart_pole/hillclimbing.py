@@ -1,12 +1,13 @@
 #!/usr/bin/python3
 import matplotlib.pyplot as plt
-from matplotlib.pyplot import Figure
 import gym
 import numpy as np
 
+
 class HillClimbing:
 
-    def run_episode(self, env, parameters):
+    @staticmethod
+    def run_episode(env, parameters):
         observation = env.reset()
         total_reward = 0
         for _ in range(200):
@@ -22,11 +23,22 @@ class HillClimbing:
                 break
         return total_reward
 
-    def train(self):
+    @staticmethod
+    def normalize(x):
+        norm = np.linalg.norm(x)
+        if norm == 0:
+            return x
+        else:
+            return x/norm
+
+    @staticmethod
+    def train():
         env = gym.make('CartPole-v0')
 
-        # parameters are 4 random values between -1 and 1
-        parameters = np.random.rand(4) * 2 - 1
+        # parameters start as random values between -1 and 1
+        # EX of good params: [-0.1906  0.2306  0.4481  0.2017]
+        observation_n = env.observation_space.shape[0]
+        parameters = np.random.rand(observation_n) * 2 - 1
         best_reward = 0
 
         # plotting stuff
@@ -35,10 +47,14 @@ class HillClimbing:
 
         # 2000 episodes
         rewards = []
-        for i in range(2000):
-            noise_scaling = 0.05
-            new_params = parameters + (np.random.rand(4) * 2 - 1) * noise_scaling
-            reward = self.run_episode(env, new_params)
+        max_trials = 1000
+        for i in range(max_trials):
+            noise_scaling = 1 - (i / max_trials)
+            new_params = parameters + (np.random.rand(observation_n) * 2 - 1) * noise_scaling
+            # normalize it because it shouldn't effect things
+            new_params = HillClimbing.normalize(new_params)
+            print(new_params)
+            reward = HillClimbing.run_episode(env, new_params)
             rewards.append(reward)
 
             if i % steps_between_plot == 0:
@@ -52,9 +68,9 @@ class HillClimbing:
                     print("game has been solved!")
                     break
 
-        plt.savefig('fig.png')
+        np.savetxt('rewards.csv', rewards, delimiter=',')
         input("press enter to exit")
-        return best_reward
+        return parameters, best_reward
 
 
 if __name__ == "__main__":
