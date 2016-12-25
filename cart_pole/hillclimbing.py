@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import os
 import matplotlib.pyplot as plt
 import gym
 import numpy as np
@@ -32,7 +33,7 @@ class HillClimbing:
             return x/norm
 
     @staticmethod
-    def train():
+    def train(show_plot=False, upload=False):
         env = gym.make('CartPole-v0')
 
         # parameters start as random values between -1 and 1
@@ -45,35 +46,47 @@ class HillClimbing:
         steps_between_plot = 40
         plt.ion()
 
+        tag = '/tmp/' + os.path.basename(__file__) + '-' + str(int(np.random.rand() * 1000))
+        env.monitor.start(tag)
+
         # 2000 episodes
         rewards = []
-        max_trials = 1000
+        max_trials = 2000
+        avg_reward = 0
+        print('step, rewards, best_reward, 100_episode_avg_reward')
         for i in range(max_trials):
             noise_scaling = 1 - (i / max_trials)
             new_params = parameters + (np.random.rand(observation_n) * 2 - 1) * noise_scaling
-            # normalize it because it shouldn't effect things
+
+            # normalize it because it reduced search space without changing action
             new_params = HillClimbing.normalize(new_params)
-            print(new_params)
             reward = HillClimbing.run_episode(env, new_params)
             rewards.append(reward)
 
-            if i % steps_between_plot == 0:
+            if show_plot and i % steps_between_plot == 0:
                 plt.plot(rewards)
                 plt.pause(0.05)
-            print("[%i] episode reward %d, best so far %d" % (i, reward, best_reward))
+
+            print("%i, %d, %d, %f" % (i, reward, best_reward, avg_reward))
             if reward > best_reward:
                 best_reward = reward
                 parameters = new_params
-                if reward == 200:
+
+            if i > 100:
+                avg_reward = sum(rewards[-100:]) / 100.0
+                if avg_reward > 195.0:
                     print("game has been solved!")
                     break
 
+        env.monitor.close()
+        if upload:
+            gym.upload(tag, api_key='sk_8MyNtnorQEeNtKpCwk2S8g')
+
         np.savetxt('rewards.csv', rewards, delimiter=',')
-        input("press enter to exit")
         return parameters, best_reward
 
 
 if __name__ == "__main__":
     hc = HillClimbing()
-    r = hc.train()
+    r = hc.train(upload=True)
     print(r)
