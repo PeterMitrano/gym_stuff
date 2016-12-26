@@ -1,6 +1,7 @@
 #!/usr/bin/python3
-import time
+from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
+from math import cos, sin
 import os
 import sys
 import gym
@@ -8,6 +9,28 @@ import numpy as np
 
 
 class ManualControl:
+
+    @staticmethod
+    def policy(observation):
+        theta = np.arctan2(observation[1], observation[0])
+        dtheta = observation[2]
+
+        if abs(theta) > 0.2:  # gather momentum until we're close
+            if (dtheta > 0 and dtheta < 3) and (theta > 0 or theta < -np.pi*2/3):
+                action = 1.5
+            elif (dtheta < 0 and dtheta > -3) and (theta < 0 or theta > np.pi*2/3):
+                action = -1.5
+            else:
+                action = 0
+        else:
+            if theta > 0 and dtheta > 0:
+                action = -2
+            elif theta < 0 and dtheta < 0:
+                action = 2
+            else:
+                action = 0
+
+        return action
 
     @staticmethod
     def run_episode(env, train_iter, render=False):
@@ -19,23 +42,7 @@ class ManualControl:
             if render:
                 env.render()
 
-            theta = np.arctan2(observation[1], observation[0])
-            dtheta = observation[2]
-
-            if abs(theta) > 0.2:  # gather momentum until we're close
-                if (dtheta > 0 and dtheta < 3) and (theta > 0 or theta < -np.pi*2/3):
-                        action = 1.5
-                elif (dtheta < 0 and dtheta > -3) and (theta < 0 or theta > np.pi*2/3):
-                    action = -1.5
-                else:
-                    action = 0
-            else:
-                if theta > 0 and dtheta > 0:
-                    action = -2
-                elif theta < 0 and dtheta < 0:
-                    action = 2
-                else:
-                    action = 0
+            action = ManualControl.policy(observation)
 
             # step the environment
             observation, reward, done, info = env.step([action])
@@ -93,10 +100,28 @@ class ManualControl:
             gym.upload(tag, api_key='sk_8MyNtnorQEeNtKpCwk2S8g')
 
         np.savetxt('rewards.csv', rewards, delimiter=',')
-        return best_reward
 
 
 if __name__ == "__main__":
     hc = ManualControl()
-    r = hc.train(upload=False)
-    print(r)
+    # r = hc.train(upload=False)
+
+    # sample observation space to generate approximate of policy
+    print("state, action")
+    xs = []
+    ys = []
+    zs = []
+    for _ in range(1000):
+        theta = np.random.uniform(-np.pi, np.pi)
+        dtheta = np.random.uniform(-8, 8)
+        obs = [cos(theta), sin(theta), dtheta]
+        action = hc.policy(obs)
+        print([obs, action])
+        xs.append(theta)
+        ys.append(dtheta)
+        zs.append(action)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(xs, ys, zs=zs)
+    plt.show()
