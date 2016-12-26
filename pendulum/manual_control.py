@@ -7,42 +7,39 @@ import sys
 import gym
 import numpy as np
 
+def policy(observation):
+    theta = np.arctan2(observation[1], observation[0])
+    dtheta = observation[2]
+
+    if abs(theta) > 0.2:  # gather momentum until we're close
+        if (dtheta > 0 and dtheta < 3) and (theta > 0 or theta < -np.pi/2):
+            action = 1.2
+        elif (dtheta < 0 and dtheta > -3) and (theta < 0 or theta > np.pi/2):
+            action = -1.2
+        else:
+            action = 0
+    else:
+        if theta > 0 and dtheta > 0:
+            action = -2
+        elif theta < 0 and dtheta < 0:
+            action = 2
+        else:
+            action = 0
+
+    return action
 
 class ManualControl:
-
-    @staticmethod
-    def policy(observation):
-        theta = np.arctan2(observation[1], observation[0])
-        dtheta = observation[2]
-
-        if abs(theta) > 0.2:  # gather momentum until we're close
-            if (dtheta > 0 and dtheta < 3) and (theta > 0 or theta < -np.pi*2/3):
-                action = 1.5
-            elif (dtheta < 0 and dtheta > -3) and (theta < 0 or theta > np.pi*2/3):
-                action = -1.5
-            else:
-                action = 0
-        else:
-            if theta > 0 and dtheta > 0:
-                action = -2
-            elif theta < 0 and dtheta < 0:
-                action = 2
-            else:
-                action = 0
-
-        return action
 
     @staticmethod
     def run_episode(env, train_iter, render=False):
         observation = env.reset()
         total_reward = 0
         rewards = []
-        # for _ in range(400):
-        while True:
+        for _ in range(800):
             if render:
                 env.render()
 
-            action = ManualControl.policy(observation)
+            action = policy(observation)
 
             # step the environment
             observation, reward, done, info = env.step([action])
@@ -52,7 +49,7 @@ class ManualControl:
             rewards = rewards[-20:]
 
             avg_reward = sum(rewards) / len(rewards)
-            if avg_reward < 0.02:
+            if avg_reward > -0.01:
                 break
 
         return total_reward
@@ -78,7 +75,7 @@ class ManualControl:
         print('step, rewards, best_reward, 100_episode_avg_reward')
         for i in range(max_trials):
 
-            reward = ManualControl.run_episode(env, i)
+            reward = ManualControl.run_episode(env, i, render=True)
             rewards.append(reward)
 
             if show_plot and i % steps_between_plot == 0:
@@ -104,24 +101,4 @@ class ManualControl:
 
 if __name__ == "__main__":
     hc = ManualControl()
-    # r = hc.train(upload=False)
-
-    # sample observation space to generate approximate of policy
-    print("state, action")
-    xs = []
-    ys = []
-    zs = []
-    for _ in range(1000):
-        theta = np.random.uniform(-np.pi, np.pi)
-        dtheta = np.random.uniform(-8, 8)
-        obs = [cos(theta), sin(theta), dtheta]
-        action = hc.policy(obs)
-        print([obs, action])
-        xs.append(theta)
-        ys.append(dtheta)
-        zs.append(action)
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(xs, ys, zs=zs)
-    plt.show()
+    r = hc.train(upload=False)
