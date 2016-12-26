@@ -13,7 +13,9 @@ class ManualControl:
     def run_episode(env, train_iter, render=False):
         observation = env.reset()
         total_reward = 0
-        for _ in range(400):
+        rewards = []
+        # for _ in range(400):
+        while True:
             if render:
                 env.render()
 
@@ -21,10 +23,10 @@ class ManualControl:
             dtheta = observation[2]
 
             if abs(theta) > 0.2:  # gather momentum until we're close
-                if (dtheta > 0 and dtheta < 4) and (theta > 0 or theta < -np.pi*2/3):
-                        action = 1
-                elif (dtheta < 0 and dtheta > -4) and (theta < 0 or theta > np.pi*2/3):
-                    action = -1
+                if (dtheta > 0 and dtheta < 3) and (theta > 0 or theta < -np.pi*2/3):
+                        action = 1.5
+                elif (dtheta < 0 and dtheta > -3) and (theta < 0 or theta > np.pi*2/3):
+                    action = -1.5
                 else:
                     action = 0
             else:
@@ -35,13 +37,15 @@ class ManualControl:
                 else:
                     action = 0
 
-            time.sleep(0.1)
-
             # step the environment
             observation, reward, done, info = env.step([action])
 
             total_reward += reward
-            if done:
+            rewards.append(reward)
+            rewards = rewards[-20:]
+
+            avg_reward = sum(rewards) / len(rewards)
+            if avg_reward < 0.02:
                 break
 
         return total_reward
@@ -61,13 +65,13 @@ class ManualControl:
 
         # simple Q learner
         rewards = []
-        max_trials = 20000
+        max_trials = 200
         print_step = 1
         avg_reward = 0
         print('step, rewards, best_reward, 100_episode_avg_reward')
         for i in range(max_trials):
 
-            reward = ManualControl.run_episode(env, i, render=True)
+            reward = ManualControl.run_episode(env, i)
             rewards.append(reward)
 
             if show_plot and i % steps_between_plot == 0:
@@ -83,9 +87,6 @@ class ManualControl:
             last_100 = rewards[-100:]
             rewards = last_100
             avg_reward = sum(rewards) / len(last_100)
-            if avg_reward > -500.0:
-                print("game has been solved!")
-                break
 
         if upload:
             env.monitor.close()
