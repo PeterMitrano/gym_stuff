@@ -14,6 +14,7 @@ class QLearner:
     def __init__(self):
         # input is sin(theta), cos(theta), and dtheta
         # we discretize these quantities as follows
+        self.epsilon = 1e-8
         self.min_angle = -np.pi
         self.max_angle = np.pi
         self.angle_step = np.pi/16
@@ -45,8 +46,8 @@ class QLearner:
         theta = np.arctan2(observation[1], observation[0])
         theta = theta - self.min_angle
         dtheta = observation[2] - self.min_dtheta
-        theta //= self.angle_step
-        dtheta //= self.dtheta_step
+        theta = (theta) // self.angle_step
+        dtheta = (dtheta) // self.dtheta_step
 
         # this is like flattening a 2d array
         return int(theta + (self.angle_n * dtheta))
@@ -60,7 +61,19 @@ class QLearner:
         return action_idx * self.action_step + self.min_action
 
     def compute_action_idx(self, action):
-        return int((action - self.min_action) // self.action_step)
+        if action > self.max_action:
+            raise ValueError("Action value %f is greater than max of %f", action, self.max_action)
+
+        action_idx = (action - self.min_action + self.epsilon) // self.action_step
+        action_idx = min(action_idx, 19)
+        return int(action_idx)
+
+    def policy(self, observation):
+        state_idx = self.compute_state_idx(observation)
+        # greedily choose best action given q table, with NO noise
+        action_idx = np.argmax(self.Q[state_idx])
+        action = self.compute_action_from_idx(action_idx)
+        return action
 
     def run_episode(self, env, train_iter, render=False):
         observation = env.reset()
@@ -71,15 +84,7 @@ class QLearner:
                 env.render()
                 time.sleep(0.1)
 
-            state_idx = self.compute_state_idx(observation)
-
-            # if state_idx not in self.visited_states:
-            #     self.visited_states.append(state_idx)
-
-            # greedily choose best action given q table, with some NO noise
-            action_idx = np.argmax(self.Q[state_idx])
-
-            action = self.compute_action_from_idx(action_idx)
+            action = self.policy(observation)
 
             # step the environment
             observation, reward, done, info = env.step([action])
@@ -153,8 +158,42 @@ class QLearner:
 if __name__ == "__main__":
     hc = QLearner()
     hc.init_q_from_manual_policy()
-    for i in range(hc.states_n):
-        if np.amax(i) == 0:
-            print(i, "oh fuck")
+
+    # xs = []
+    # ys = []
+    # zs = []
+    # pred_xs = []
+    # pred_ys = []
+    # pred_zs = []
+    # for state_idx in range(hc.states_n):
+    #     state = hc.compute_state_from_idx(state_idx)
+    #     theta = np.arctan2(state[1], state[0])
+    #     dtheta = state[2]
+    #     action_idx = np.argmax(hc.Q[state_idx])
+    #     action = hc.compute_action_from_idx(action_idx)
+    #
+    #     pred_xs.append(theta)
+    #     pred_ys.append(dtheta)
+    #     pred_zs.append(action)
+    #
+    #     theta = np.random.uniform(-np.pi, np.pi)
+    #     dtheta = np.random.uniform(-8, 8)
+    #     obs = [cos(theta), sin(theta), dtheta]
+    #     action = manual_control.policy(obs)
+    #     xs.append(theta)
+    #     ys.append(dtheta)
+    #     zs.append(action)
+    #
+    # action_fig = plt.figure(1)
+    # action_fig2 = plt.figure(2)
+    # ax = action_fig.add_subplot(111, projection='3d')
+    # ax2 = action_fig2.add_subplot(111, projection='3d')
+    # ax.scatter(pred_xs, pred_ys, zs=pred_zs, c='b', label='pred')
+    # ax2.scatter(xs, ys, zs=zs, c='r', label='true')
+    # plt.show()
+
+    o = [-1.0, -1.22e-16, -8]
+    x = manual_control.policy(o)
+    x = hc.policy(o)
     r = hc.train(upload=False)
-    print(r)
+    # print(r)
