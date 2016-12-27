@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 from mpl_toolkits.mplot3d import Axes3D
 import tensorflow as tf
+import manual_control
 import matplotlib.pyplot as plt
 from math import cos, sin
 import os
@@ -157,7 +158,7 @@ def main():
                 theta = np.random.uniform(-np.pi, np.pi)
                 dtheta = np.random.uniform(-8, 8)
                 obs = [cos(theta), sin(theta), dtheta]
-                action = hc.policy(obs)
+                action = manual_control.policy(obs)
                 obs_arr = np.array([obs])
                 action_arr = np.array([[action]])
 
