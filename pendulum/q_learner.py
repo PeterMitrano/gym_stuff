@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 import os
-import time
 import manual_control
 from math import sin, cos
 import sys
@@ -86,7 +85,6 @@ class QLearner:
         for _ in range(600):
             if render:
                 env.render()
-                time.sleep(0.1)
 
             action = self.policy(observation)
 
@@ -125,13 +123,13 @@ class QLearner:
 
         # simple Q learner
         rewards = []
-        max_trials = 20000
+        max_trials = 10000
         print_step = 100
         avg_reward = 0
         print('step, rewards, best_reward, 100_episode_avg_reward')
         for i in range(max_trials):
 
-            reward = self.run_episode(env, i, render=True)
+            reward = self.run_episode(env, i, render=False)
             rewards.append(reward)
 
             if show_plot and i % steps_between_plot == 0:
@@ -162,19 +160,19 @@ class QLearner:
 if __name__ == "__main__":
     ql = QLearner()
     ql.init_q_from_manual_policy()
-
+    #
     # xs = []
     # ys = []
     # zs = []
     # pred_xs = []
     # pred_ys = []
     # pred_zs = []
-    # for state_idx in range(hc.states_n):
-    #     state = hc.compute_state_from_idx(state_idx)
+    # for state_idx in range(ql.states_n):
+    #     state = ql.compute_state_from_idx(state_idx)
     #     theta = np.arctan2(state[1], state[0])
     #     dtheta = state[2]
-    #     action_idx = np.argmax(hc.Q[state_idx])
-    #     action = hc.compute_action_from_idx(action_idx)
+    #     action_idx = np.argmax(ql.Q[state_idx])
+    #     action = ql.compute_action_from_idx(action_idx)
     #
     #     pred_xs.append(theta)
     #     pred_ys.append(dtheta)
@@ -189,19 +187,10 @@ if __name__ == "__main__":
     #     zs.append(action)
     #
     # action_fig = plt.figure(1)
-    # action_fig2 = plt.figure(2)
     # ax = action_fig.add_subplot(111, projection='3d')
-    # ax2 = action_fig2.add_subplot(111, projection='3d')
     # ax.scatter(pred_xs, pred_ys, zs=pred_zs, c='b', label='pred')
-    # ax2.scatter(xs, ys, zs=zs, c='r', label='true')
+    # ax.scatter(xs, ys, zs=zs, c='r', label='true')
     # plt.show()
 
-    for i in range(ql.states_n):
-        x = ql.compute_state_from_idx(i)
-        i2 = ql.compute_state_idx(x)
-        if i != i2:
-            print(i, "!=", i2)
-            break
-
-    # r = ql.train(upload=False)
+    r = ql.train(upload=False)
     # print(r)
