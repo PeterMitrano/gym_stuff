@@ -150,7 +150,7 @@ def main(upload=False):
         n = 20000
         avg_costs = []
         print("step, cost")
-        for i in range(20):
+        for i in range(100):
             costs = 0
             for _ in range(n):
                 theta = np.random.uniform(-np.pi, np.pi)
@@ -172,8 +172,8 @@ def main(upload=False):
         print("Training is complete.")
 
         nnc = NNControl()
-        # nnc.test(sess, avg_costs, action_pred, X)
-        nnc.run(sess, action_pred, X)
+        nnc.test(sess, avg_costs, action_pred, X)
+        # nnc.run(sess, action_pred, X)
 
 if __name__ == "__main__":
     main()
