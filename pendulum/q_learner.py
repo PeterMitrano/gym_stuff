@@ -53,8 +53,12 @@ class QLearner:
         return int(theta + (self.angle_n * dtheta))
 
     def compute_state_from_idx(self, state_idx):
-        theta = state_idx % self.angle_n + self.min_angle
-        dtheta = (state_idx // self.angle_n) * self.dtheta_step + self.min_dtheta
+        theta = (state_idx % self.angle_n) * self.angle_step + self.min_angle + self.epsilon
+        if theta - self.epsilon <= self.max_angle < theta:
+            theta -= self.epsilon
+        dtheta = (state_idx // self.angle_n) * self.dtheta_step + self.min_dtheta + self.epsilon
+        if dtheta - self.epsilon <= self.max_dtheta < dtheta:
+            theta -= self.epsilon
         return [cos(theta), sin(theta), dtheta]
 
     def compute_action_from_idx(self, action_idx):
@@ -156,8 +160,8 @@ class QLearner:
 
 
 if __name__ == "__main__":
-    hc = QLearner()
-    hc.init_q_from_manual_policy()
+    ql = QLearner()
+    ql.init_q_from_manual_policy()
 
     # xs = []
     # ys = []
@@ -192,8 +196,12 @@ if __name__ == "__main__":
     # ax2.scatter(xs, ys, zs=zs, c='r', label='true')
     # plt.show()
 
-    o = [-1.0, -1.22e-16, -8]
-    x = manual_control.policy(o)
-    x = hc.policy(o)
-    r = hc.train(upload=False)
+    for i in range(ql.states_n):
+        x = ql.compute_state_from_idx(i)
+        i2 = ql.compute_state_idx(x)
+        if i != i2:
+            print(i, "!=", i2)
+            break
+
+    # r = ql.train(upload=False)
     # print(r)
