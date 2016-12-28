@@ -97,7 +97,8 @@ class QLearner:
         observation = env.reset()
         total_reward = 0
         rewards = []
-        for _ in range(600):
+        # for _ in range(600):
+        while True:
             if render:
                 env.render()
 
@@ -123,7 +124,8 @@ class QLearner:
             rewards = rewards[-80:]
 
             avg_reward = sum(rewards) / len(rewards)
-            if avg_reward > -0.005 or done:
+            # if avg_reward > -0.005 or done:
+            if done:
                 break
 
         return total_reward
@@ -159,7 +161,7 @@ class QLearner:
             last_100 = rewards[-100:]
             rewards = last_100
             avg_reward = sum(rewards) / len(last_100)
-            if avg_reward > -300.0:
+            if avg_reward > -100.0:
                 print("game has been solved!")
                 break
 
@@ -179,5 +181,5 @@ class QLearner:
 if __name__ == "__main__":
     ql = QLearner()
     ql.init_q_from_manual_policy()
-    r = ql.train(show_plot=True, upload=False)
+    r = ql.train(show_plot=True, upload=True)
     # print(r)

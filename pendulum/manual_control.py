@@ -11,11 +11,11 @@ def policy(observation):
     theta = np.arctan2(observation[1], observation[0])
     dtheta = observation[2]
 
-    if abs(theta) > 0.2:  # gather momentum until we're close
+    if abs(theta) > 0.25:  # gather momentum until we're close
         if (dtheta > 0 and dtheta < 3) and (theta > 0 or theta < -np.pi/2):
-            action = 1.2
+            action = 1
         elif (dtheta < 0 and dtheta > -3) and (theta < 0 or theta > np.pi/2):
-            action = -1.2
+            action = -1
         else:
             action = 0
     else:
