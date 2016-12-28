@@ -1,10 +1,13 @@
 #!/usr/bin/python3
+import time
+import pickle
 import os
 import manual_control
 from math import sin, cos
 import sys
 import matplotlib.pyplot as plt
 import gym
+from gym import wrappers
 import numpy as np
 
 
@@ -71,44 +74,67 @@ class QLearner:
         action_idx = min(action_idx, 19)
         return int(action_idx)
 
-    def policy(self, observation):
+    def random_policy(self, observation):
         state_idx = self.compute_state_idx(observation)
-        # greedily choose best action given q table, with NO noise
-        action_idx = np.argmax(self.Q[state_idx])
+        action_idx = np.random.randint(0, self.action_n)
         action = self.compute_action_from_idx(action_idx)
-        return action
+        return state_idx, action, action_idx
+
+    def manual_policy(self, observation):
+        state_idx = self.compute_state_idx(observation)
+        action = manual_control.policy(observation)
+        action_idx = self.compute_action_idx(action)
+        return state_idx, action, action_idx
+
+    def noisy_q_policy(self, observation):
+        state_idx = self.compute_state_idx(observation)
+        # greedily choose best action given q table, with noise
+        noise = np.random.randn([1, self.action_n]) * 5
+        action_idx = np.argmax(self.Q[state_idx] + noise)
+        action = self.compute_action_from_idx(action_idx)
+        return state_idx, action, action_idx
 
     def run_episode(self, env, train_iter, render=False):
         observation = env.reset()
         total_reward = 0
         rewards = []
         for _ in range(600):
+        # while True:
             if render:
                 env.render()
 
-            action = self.policy(observation)
+            # Q Learning is off policy, so we can follow a much better (manual) policy while we learn
+            if np.random.rand() < 0.4:
+                state_idx, action, action_idx = self.random_policy(observation)
+            else:
+                state_idx, action, action_idx = self.manual_policy(observation)
+
 
             # step the environment
             observation, reward, done, info = env.step([action])
             # cost has fixed lower limit, so we add to make it a reward
 
             # update Q table
-            # next_state_idx = self.compute_state_idx(observation)
-            # dq = reward + self.gamma * np.max(self.Q[next_state_idx])  # np.max() means use best action from next state
-            # self.Q[state_idx, action_idx] = (1 - self.lr) * self.Q[state_idx, action_idx] + self.lr * dq
+            next_state_idx = self.compute_state_idx(observation)
+            dq = reward + self.gamma * np.max(self.Q[next_state_idx])  # np.max() means use best action from next state
+            new_q = (1 - self.lr) * self.Q[state_idx, action_idx] + self.lr * dq
+            self.Q[state_idx, action_idx] = new_q
             total_reward += reward
 
             rewards.append(reward)
-            rewards = rewards[-20:]
+            rewards = rewards[-80:]
 
             avg_reward = sum(rewards) / len(rewards)
-            if avg_reward > -0.01:
+            if avg_reward > -0.005 or done:
                 break
 
         return total_reward
 
     def train(self, show_plot=False, upload=False):
         env = gym.make('Pendulum-v0')
+        directory = '/tmp/' + os.path.basename(__file__) + '-' + str(int(time.time()))
+        if upload:
+            env = wrappers.Monitor(directory)(env)
 
         best_reward = -sys.maxsize
 
@@ -117,18 +143,17 @@ class QLearner:
         steps_between_render = 1000
         plt.ion()
 
-        if upload:
-            tag = '/tmp/' + os.path.basename(__file__) + '-' + str(int(np.random.rand() * 1000))
-            env.monitor.start(tag)
-
         # simple Q learner
         rewards = []
         max_trials = 10000
-        print_step = 100
+        print_step = 1000
         avg_reward = 0
         print('step, rewards, best_reward, 100_episode_avg_reward')
         for i in range(max_trials):
 
+            # if i % steps_between_render == 0:
+            #     reward = self.run_episode(env, i, render=True)
+            # else:
             reward = self.run_episode(env, i, render=False)
             rewards.append(reward)
 
@@ -145,52 +170,23 @@ class QLearner:
             last_100 = rewards[-100:]
             rewards = last_100
             avg_reward = sum(rewards) / len(last_100)
-            if avg_reward > 5000.0:
+            if avg_reward > -300.0:
                 print("game has been solved!")
                 break
 
-        if upload:
-            env.monitor.close()
-            gym.upload(tag, api_key='sk_8MyNtnorQEeNtKpCwk2S8g')
+        # save q table
+        pickle.dump(self.Q, open('q_table.pickle', 'wb'))
 
-        np.savetxt('rewards.csv', rewards, delimiter=',')
+        # upload/end monitoring
+        if upload:
+            env.close()
+            gym.upload(directory, api_key='sk_8MyNtnorQEeNtKpCwk2S8g')
+
         return best_reward
 
 
 if __name__ == "__main__":
     ql = QLearner()
     ql.init_q_from_manual_policy()
-    #
-    # xs = []
-    # ys = []
-    # zs = []
-    # pred_xs = []
-    # pred_ys = []
-    # pred_zs = []
-    # for state_idx in range(ql.states_n):
-    #     state = ql.compute_state_from_idx(state_idx)
-    #     theta = np.arctan2(state[1], state[0])
-    #     dtheta = state[2]
-    #     action_idx = np.argmax(ql.Q[state_idx])
-    #     action = ql.compute_action_from_idx(action_idx)
-    #
-    #     pred_xs.append(theta)
-    #     pred_ys.append(dtheta)
-    #     pred_zs.append(action)
-    #
-    #     theta = np.random.uniform(-np.pi, np.pi)
-    #     dtheta = np.random.uniform(-8, 8)
-    #     obs = [cos(theta), sin(theta), dtheta]
-    #     action = manual_control.policy(obs)
-    #     xs.append(theta)
-    #     ys.append(dtheta)
-    #     zs.append(action)
-    #
-    # action_fig = plt.figure(1)
-    # ax = action_fig.add_subplot(111, projection='3d')
-    # ax.scatter(pred_xs, pred_ys, zs=pred_zs, c='b', label='pred')
-    # ax.scatter(xs, ys, zs=zs, c='r', label='true')
-    # plt.show()
-
     r = ql.train(upload=False)
     # print(r)
