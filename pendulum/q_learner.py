@@ -1,11 +1,10 @@
 #!/usr/bin/python3
+import bloscpack as bp
 import time
-import pickle
 import os
 import manual_control
 from math import sin, cos
 import sys
-import matplotlib.pyplot as plt
 import gym
 from gym import wrappers
 import numpy as np
@@ -89,12 +88,12 @@ class QLearner:
     def noisy_q_policy(self, observation):
         state_idx = self.compute_state_idx(observation)
         # greedily choose best action given q table, with noise
-        noise = np.random.rand(1, self.action_n) * 5
+        noise = np.random.rand(1, self.action_n) * 1
         action_idx = np.argmax(self.Q[state_idx] + noise)
         action = self.compute_action_from_idx(action_idx)
         return state_idx, action, action_idx
 
-    def run_episode(self, env, training, render=False):
+    def run_episode(self, env, training_itr, render=False):
         observation = env.reset()
         total_reward = 0
         rewards = []
@@ -103,7 +102,11 @@ class QLearner:
                 env.render()
 
             # Q Learning is off policy, so we can follow a much better (manual) policy while we learn
-            state_idx, action, action_idx = self.noisy_q_policy(observation)
+
+            if training_itr < 1000:
+                state_idx, action, action_idx = self.random_policy(observation)
+            else:
+                state_idx, action, action_idx = self.noisy_q_policy(observation)
 
             # step the environment
             observation, reward, done, info = env.step([action])
@@ -160,11 +163,10 @@ class QLearner:
                 print("game has been solved!")
                 break
 
-        plt.plot(rewards)
-        plt.show()
+        np.savetxt('rewards.csv', rewards, delimiter=',', newline='\n')
 
         # save q table
-        pickle.dump(self.Q, open('q_table.pickle', 'wb'))
+        bp.pack_ndarray_file(self.Q, 'q_table.bp')
 
         # upload/end monitoring
         if upload:
