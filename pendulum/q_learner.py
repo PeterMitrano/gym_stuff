@@ -89,26 +89,21 @@ class QLearner:
     def noisy_q_policy(self, observation):
         state_idx = self.compute_state_idx(observation)
         # greedily choose best action given q table, with noise
-        noise = np.random.randn([1, self.action_n]) * 5
+        noise = np.random.rand(1, self.action_n) * 5
         action_idx = np.argmax(self.Q[state_idx] + noise)
         action = self.compute_action_from_idx(action_idx)
         return state_idx, action, action_idx
 
-    def run_episode(self, env, train_iter, render=False):
+    def run_episode(self, env, training, render=False):
         observation = env.reset()
         total_reward = 0
         rewards = []
         for _ in range(600):
-        # while True:
             if render:
                 env.render()
 
             # Q Learning is off policy, so we can follow a much better (manual) policy while we learn
-            if np.random.rand() < 0.4:
-                state_idx, action, action_idx = self.random_policy(observation)
-            else:
-                state_idx, action, action_idx = self.manual_policy(observation)
-
+            state_idx, action, action_idx = self.noisy_q_policy(observation)
 
             # step the environment
             observation, reward, done, info = env.step([action])
@@ -138,30 +133,21 @@ class QLearner:
 
         best_reward = -sys.maxsize
 
-        # plotting stuff
-        steps_between_plot = 200
         steps_between_render = 1000
-        plt.ion()
-
-        # simple Q learner
         rewards = []
-        max_trials = 10000
-        print_step = 1000
+        max_trials = 100000
+        print_step = 500
         avg_reward = 0
         print('step, rewards, best_reward, 100_episode_avg_reward')
         for i in range(max_trials):
 
-            # if i % steps_between_render == 0:
-            #     reward = self.run_episode(env, i, render=True)
-            # else:
-            reward = self.run_episode(env, i, render=False)
-            rewards.append(reward)
-
-            if show_plot and i % steps_between_plot == 0:
-                plt.plot(rewards)
-                plt.pause(0.05)
+            if i % steps_between_render == 0:
+                reward = self.run_episode(env, i, render=True)
+            else:
+                reward = self.run_episode(env, i, render=False)
 
             if i % print_step == 0:
+                rewards.append(reward)
                 print("%i, %d, %d, %f" % (i, reward, best_reward, avg_reward))
 
             if reward > best_reward:
@@ -173,6 +159,9 @@ class QLearner:
             if avg_reward > -300.0:
                 print("game has been solved!")
                 break
+
+        plt.plot(rewards)
+        plt.show()
 
         # save q table
         pickle.dump(self.Q, open('q_table.pickle', 'wb'))
@@ -188,5 +177,5 @@ class QLearner:
 if __name__ == "__main__":
     ql = QLearner()
     ql.init_q_from_manual_policy()
-    r = ql.train(upload=False)
+    r = ql.train(show_plot=True, upload=False)
     # print(r)
