@@ -31,7 +31,7 @@ class QLearner:
         self.states_n = self.angle_n * self.dtheta_n
         self.Q = np.zeros([self.states_n, self.action_n])
 
-        self.lr = 0.4
+        self.lr = 0.8
         self.gamma = 0.9
         self.visited_states = []
 
@@ -199,6 +199,6 @@ class QLearner:
 
 if __name__ == "__main__":
     ql = QLearner()
-    ql.init_q_from_manual_policy()
+    # ql.init_q_from_manual_policy()
     r = ql.train(show_plot=True, upload=False)
     # print(r)
