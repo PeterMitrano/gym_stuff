@@ -99,7 +99,6 @@ class QLearner:
     def run_episode(self, env, policy, render=False):
         observation = env.reset()
         total_reward = 0
-        rewards = []
 
         i = 0
         while True:
@@ -132,10 +131,6 @@ class QLearner:
             self.Q[state_idx, action_idx] = new_q
             total_reward += reward
 
-            rewards.append(reward)
-            rewards = rewards[-80:]
-
-            avg_reward = sum(rewards) / len(rewards)
             i += 1
             if env.monitored and done:
                 break
@@ -155,7 +150,7 @@ class QLearner:
 
         best_reward = -sys.maxsize
 
-        steps_between_render = 1000
+        steps_between_render = 10000
         rewards = []
         max_trials = 10000
         print_step = 500
@@ -170,7 +165,7 @@ class QLearner:
             else:
                 policy = 'noisy_q'
 
-            if i % steps_between_render == 0:
+            if i % steps_between_render == 0 or max_trials - i < 10:
                 reward = self.run_episode(env, policy, render=True)
             else:
                 reward = self.run_episode(env, policy, render=False)
@@ -185,7 +180,7 @@ class QLearner:
             last_100 = rewards[-100:]
             rewards = last_100
             avg_reward = sum(rewards) / len(last_100)
-            if avg_reward > -100.0:
+            if avg_reward > 0.0:
                 print("game has been solved!")
                 break
 
