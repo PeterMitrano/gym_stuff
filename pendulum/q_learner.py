@@ -79,9 +79,12 @@ class QLearner:
         action = self.compute_action_from_idx(action_idx)
         return state_idx, action, action_idx
 
-    def manual_policy(self, observation):
+    def manual_policy(self, observation, noise_level=0):
         state_idx = self.compute_state_idx(observation)
         action = manual_control.policy(observation)
+        action += np.random.normal(0, noise_level)
+        action = max(self.min_action, action)
+        action = min(self.max_action, action)
         action_idx = self.compute_action_idx(action)
         return state_idx, action, action_idx
 
@@ -105,12 +108,14 @@ class QLearner:
 
             # Q Learning is off policy, so we can follow a much better (manual) policy while we learn
 
-            if policy == 'manual':
+            if policy == 'noisy_manual':
+                state_idx, action, action_idx = self.manual_policy(observation, noise_level=2)
+            elif policy == 'manual':
                 state_idx, action, action_idx = self.manual_policy(observation)
-            if policy == 'random':
+            elif policy == 'random':
                 state_idx, action, action_idx = self.random_policy(observation)
             elif policy == 'noisy_q':
-                state_idx, action, action_idx = self.q_policy(observation, noise_level=4)
+                state_idx, action, action_idx = self.q_policy(observation, noise_level=2)
             elif policy == 'q':
                 state_idx, action, action_idx = self.q_policy(observation)
             else:
@@ -152,14 +157,14 @@ class QLearner:
 
         steps_between_render = 1000
         rewards = []
-        max_trials = 50000
+        max_trials = 10000
         print_step = 500
         avg_reward = 0
         print('step, rewards, best_reward, 100_episode_avg_reward')
         for i in range(max_trials):
 
-            if i < 1000:
-                policy = 'random'
+            if i < 2000:
+                policy = 'noisy_manual'
             elif max_trials - i < 1000:
                 policy = 'q'
             else:
@@ -199,6 +204,7 @@ class QLearner:
 
 if __name__ == "__main__":
     ql = QLearner()
-    # ql.init_q_from_manual_policy()
+    ql.init_q_from_manual_policy()
+    print(ql.states_n)
     r = ql.train(show_plot=True, upload=False)
     # print(r)
