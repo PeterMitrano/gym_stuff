@@ -85,29 +85,36 @@ class QLearner:
         action_idx = self.compute_action_idx(action)
         return state_idx, action, action_idx
 
-    def noisy_q_policy(self, observation):
+    def q_policy(self, observation, noise_level=0):
         state_idx = self.compute_state_idx(observation)
         # greedily choose best action given q table, with noise
-        noise = np.random.rand(1, self.action_n) * 1
+        noise = np.random.rand(1, self.action_n) * noise_level
         action_idx = np.argmax(self.Q[state_idx] + noise)
         action = self.compute_action_from_idx(action_idx)
         return state_idx, action, action_idx
 
-    def run_episode(self, env, training_itr, render=False):
+    def run_episode(self, env, policy, render=False):
         observation = env.reset()
         total_reward = 0
         rewards = []
-        # for _ in range(600):
+
+        i = 0
         while True:
             if render:
                 env.render()
 
             # Q Learning is off policy, so we can follow a much better (manual) policy while we learn
 
-            if training_itr < 1000:
+            if policy == 'manual':
+                state_idx, action, action_idx = self.manual_policy(observation)
+            if policy == 'random':
                 state_idx, action, action_idx = self.random_policy(observation)
+            elif policy == 'noisy_q':
+                state_idx, action, action_idx = self.q_policy(observation, noise_level=4)
+            elif policy == 'q':
+                state_idx, action, action_idx = self.q_policy(observation)
             else:
-                state_idx, action, action_idx = self.noisy_q_policy(observation)
+                raise ValueError("Invalid policy string")
 
             # step the environment
             observation, reward, done, info = env.step([action])
@@ -124,8 +131,10 @@ class QLearner:
             rewards = rewards[-80:]
 
             avg_reward = sum(rewards) / len(rewards)
-            # if avg_reward > -0.005 or done:
-            if done:
+            i += 1
+            if env.monitored and done:
+                break
+            elif i > 600:
                 break
 
         return total_reward
@@ -135,21 +144,31 @@ class QLearner:
         directory = '/tmp/' + os.path.basename(__file__) + '-' + str(int(time.time()))
         if upload:
             env = wrappers.Monitor(directory)(env)
+            env.monitored = True
+        else:
+            env.monitored = False
 
         best_reward = -sys.maxsize
 
         steps_between_render = 1000
         rewards = []
-        max_trials = 100000
+        max_trials = 50000
         print_step = 500
         avg_reward = 0
         print('step, rewards, best_reward, 100_episode_avg_reward')
         for i in range(max_trials):
 
-            if i % steps_between_render == 0:
-                reward = self.run_episode(env, i, render=True)
+            if i < 1000:
+                policy = 'random'
+            elif max_trials - i < 1000:
+                policy = 'q'
             else:
-                reward = self.run_episode(env, i, render=False)
+                policy = 'noisy_q'
+
+            if i % steps_between_render == 0:
+                reward = self.run_episode(env, policy, render=True)
+            else:
+                reward = self.run_episode(env, policy, render=False)
 
             if i % print_step == 0:
                 rewards.append(reward)
@@ -181,5 +200,5 @@ class QLearner:
 if __name__ == "__main__":
     ql = QLearner()
     ql.init_q_from_manual_policy()
-    r = ql.train(show_plot=True, upload=True)
+    r = ql.train(show_plot=True, upload=False)
     # print(r)
