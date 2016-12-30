@@ -35,6 +35,9 @@ class QLearner:
         self.gamma = 0.9
         self.visited_states = []
 
+    def init_q_table(self, q_table):
+        self.Q = q_table
+
     def init_q_from_manual_policy(self):
         initial_reward = 10
         for state_idx in range(self.states_n):
