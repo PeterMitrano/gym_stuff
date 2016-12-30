@@ -2,7 +2,6 @@
 import bloscpack as bp
 import time
 import os
-import manual_control
 from math import sin, cos
 import sys
 import gym
@@ -15,20 +14,24 @@ class QLearner:
     def __init__(self):
         # input is sin(theta), cos(theta), and dtheta
         # we discretize these quantities as follows
-        self.epsilon = 1e-8
         self.min_angle = -np.pi
         self.max_angle = np.pi
         self.angle_step = np.pi/16
         self.min_dtheta = -8
         self.max_dtheta = 8
         self.dtheta_step = 0.05
+        self.angle_n = int((self.max_angle - self.min_angle) // self.angle_step + 1)
+        self.dtheta_n = int((self.max_dtheta - self.min_dtheta) // self.dtheta_step + 1)
+        self.states_n = self.angle_n * self.dtheta_n
+
+        self.observation_dim = 3
+        self.action_dim = 1
+        self.epsilon = 1e-8
         self.min_action = -2
         self.max_action = 2
         self.action_step = 0.2
-        self.angle_n = int((self.max_angle - self.min_angle) // self.angle_step + 1)
-        self.dtheta_n = int((self.max_dtheta - self.min_dtheta) // self.dtheta_step + 1)
+
         self.action_n = int((self.max_action - self.min_action) // self.action_step + 1)
-        self.states_n = self.angle_n * self.dtheta_n
         self.Q = np.zeros([self.states_n, self.action_n])
 
         self.lr = 0.8
@@ -37,14 +40,6 @@ class QLearner:
 
     def init_q_table(self, q_table):
         self.Q = q_table
-
-    def init_q_from_manual_policy(self):
-        initial_reward = 10
-        for state_idx in range(self.states_n):
-            state = self.compute_state_from_idx(state_idx)
-            action = manual_control.policy(state)
-            action_idx = self.compute_action_idx(action)
-            self.Q[state_idx, action_idx] = initial_reward
 
     def compute_state_idx(self, observation):
         theta = np.arctan2(observation[1], observation[0])
@@ -76,22 +71,7 @@ class QLearner:
         action_idx = min(action_idx, 19)
         return int(action_idx)
 
-    def random_policy(self, observation):
-        state_idx = self.compute_state_idx(observation)
-        action_idx = np.random.randint(0, self.action_n)
-        action = self.compute_action_from_idx(action_idx)
-        return state_idx, action, action_idx
-
-    def manual_policy(self, observation, noise_level=0):
-        state_idx = self.compute_state_idx(observation)
-        action = manual_control.policy(observation)
-        action += np.random.normal(0, noise_level)
-        action = max(self.min_action, action)
-        action = min(self.max_action, action)
-        action_idx = self.compute_action_idx(action)
-        return state_idx, action, action_idx
-
-    def q_policy(self, observation, noise_level=0):
+    def q_policy(self, observation, noise_level=1):
         state_idx = self.compute_state_idx(observation)
         # greedily choose best action given q table, with noise
         noise = np.random.rand(1, self.action_n) * noise_level
@@ -99,7 +79,7 @@ class QLearner:
         action = self.compute_action_from_idx(action_idx)
         return state_idx, action, action_idx
 
-    def run_episode(self, env, policy, render=False):
+    def run_episode(self, env, noise_level, render=False):
         observation = env.reset()
         total_reward = 0
 
@@ -108,20 +88,7 @@ class QLearner:
             if render:
                 env.render()
 
-            # Q Learning is off policy, so we can follow a much better (manual) policy while we learn
-
-            if policy == 'noisy_manual':
-                state_idx, action, action_idx = self.manual_policy(observation, noise_level=2)
-            elif policy == 'manual':
-                state_idx, action, action_idx = self.manual_policy(observation)
-            elif policy == 'random':
-                state_idx, action, action_idx = self.random_policy(observation)
-            elif policy == 'noisy_q':
-                state_idx, action, action_idx = self.q_policy(observation, noise_level=2)
-            elif policy == 'q':
-                state_idx, action, action_idx = self.q_policy(observation)
-            else:
-                raise ValueError("Invalid policy string")
+            state_idx, action, action_idx = self.q_policy(observation, noise_level=noise_level)
 
             # step the environment
             observation, reward, done, info = env.step([action])
@@ -142,7 +109,7 @@ class QLearner:
 
         return total_reward
 
-    def train(self, show_plot=False, upload=False):
+    def train(self, upload=False):
         env = gym.make('Pendulum-v0')
         directory = '/tmp/' + os.path.basename(__file__) + '-' + str(int(time.time()))
         if upload:
@@ -151,39 +118,27 @@ class QLearner:
         else:
             env.monitored = False
 
-        best_reward = -sys.maxsize
-
         steps_between_render = 10000
         rewards = []
-        max_trials = 10000
-        print_step = 500
+        max_trials = 50000
+        print_step = 1000
         avg_reward = 0
-        print('step, rewards, best_reward, 100_episode_avg_reward')
+        print('step, 100_episode_avg_reward')
         for i in range(max_trials):
 
-            if i < 2000:
-                policy = 'noisy_manual'
-            elif max_trials - i < 1000:
-                policy = 'q'
-            else:
-                policy = 'noisy_q'
-
-            if i % steps_between_render == 0 or max_trials - i < 10:
-                reward = self.run_episode(env, policy, render=True)
-            else:
-                reward = self.run_episode(env, policy, render=False)
+            # decrease noise linearly as we learn
+            # 8 is a lot of noise
+            noise_level = (1 - (i / max_trials)) * 8
+            reward = self.run_episode(env, noise_level, render=False)
 
             if i % print_step == 0:
                 rewards.append(reward)
-                print("%i, %d, %d, %f" % (i, reward, best_reward, avg_reward))
-
-            if reward > best_reward:
-                best_reward = reward
+                print("%i, %d" % (i, avg_reward))
 
             last_100 = rewards[-100:]
             rewards = last_100
             avg_reward = sum(rewards) / len(last_100)
-            if avg_reward > 0.0:
+            if avg_reward > -300.0 and len(last_100) == 100:
                 print("game has been solved!")
                 break
 
@@ -197,12 +152,7 @@ class QLearner:
             env.close()
             gym.upload(directory, api_key='sk_8MyNtnorQEeNtKpCwk2S8g')
 
-        return best_reward
-
 
 if __name__ == "__main__":
     ql = QLearner()
-    ql.init_q_from_manual_policy()
-    print(ql.states_n)
-    r = ql.train(show_plot=True, upload=False)
-    # print(r)
+    ql.train(upload=False)
