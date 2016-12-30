@@ -126,9 +126,8 @@ class QLearner:
         print('step, 100_episode_avg_reward')
         for i in range(max_trials):
 
-            # decrease noise linearly as we learn
-            # 8 is a lot of noise
-            noise_level = (1 - (i / max_trials)) * 8
+            # decrease noise as we learn.
+            noise_level = 48 / (12 + i)
             reward = self.run_episode(env, noise_level, render=False)
 
             if i % print_step == 0:
@@ -141,8 +140,6 @@ class QLearner:
             if avg_reward > -300.0 and len(last_100) == 100:
                 print("game has been solved!")
                 break
-
-        np.savetxt('rewards.csv', rewards, delimiter=',', newline='\n')
 
         # save q table
         bp.pack_ndarray_file(self.Q, 'q_table.bp')
