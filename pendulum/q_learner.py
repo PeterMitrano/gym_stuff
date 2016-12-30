@@ -32,7 +32,7 @@ class QLearner:
         self.action_step = 0.2
 
         self.action_n = int((self.max_action - self.min_action) // self.action_step + 1)
-        self.Q = np.zeros([self.states_n, self.action_n])
+        self.Q = np.random.rand(self.states_n, self.action_n)
 
         self.lr = 0.8
         self.gamma = 0.9
