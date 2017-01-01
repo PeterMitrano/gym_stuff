@@ -14,27 +14,22 @@ class QLearner:
     def __init__(self):
         # input is sin(theta), cos(theta), and dtheta
         # we discretize these quantities as follows
-        self.min_angle = -np.pi
-        self.max_angle = np.pi
-        self.angle_step = np.pi/16
-        self.min_dtheta = -8
-        self.max_dtheta = 8
-        self.dtheta_step = 0.05
-        self.angle_n = int((self.max_angle - self.min_angle) // self.angle_step + 1)
-        self.dtheta_n = int((self.max_dtheta - self.min_dtheta) // self.dtheta_step + 1)
-        self.states_n = self.angle_n * self.dtheta_n
+        self.state_bounds = []
+        self.state_bounds.append([-np.pi, np.pi, np.pi/24])
+        self.state_bounds.append([-8, 8, 0.02])
+        self.state_dims = []
+        for bound in self.state_bounds:
+            dim_n = (bound[1] - bound[0]) // bound[2] + 1
+            self.state_dims.append(dim_n)
 
-        self.observation_dim = 3
-        self.action_dim = 1
+        self.action_bounds = [-2, 2, 0.2]
+        self.action_n = (self.action_bounds[1] - self.action_bounds[0]) // self.action_bounds[2] + 1
+
         self.epsilon = 1e-8
-        self.min_action = -2
-        self.max_action = 2
-        self.action_step = 0.2
 
-        self.action_n = int((self.max_action - self.min_action) // self.action_step + 1)
-        self.Q = np.random.rand(self.states_n, self.action_n)
+        self.Q = np.random.rand(*self.state_dims, self.action_n)
 
-        self.lr = 0.8
+        self.lr = 1.0  # optimal for deterministic environment
         self.gamma = 0.9
         self.visited_states = []
 
@@ -51,7 +46,10 @@ class QLearner:
         # this is like flattening a 2d array
         return int(theta + (self.angle_n * dtheta))
 
-    def compute_state_from_idx(self, state_idx):
+    def compute_action_from_idx(self, action_idx):
+        return action_idx * self.action_step + self.min_action
+
+    def _compute_state_from_idx(self, state_idx):
         theta = (state_idx % self.angle_n) * self.angle_step + self.min_angle + self.epsilon
         if theta - self.epsilon <= self.max_angle < theta:
             theta -= self.epsilon
@@ -60,10 +58,7 @@ class QLearner:
             theta -= self.epsilon
         return [cos(theta), sin(theta), dtheta]
 
-    def compute_action_from_idx(self, action_idx):
-        return action_idx * self.action_step + self.min_action
-
-    def compute_action_idx(self, action):
+    def _compute_action_idx(self, action):
         if action > self.max_action:
             raise ValueError("Action value %f is greater than max of %f", action, self.max_action)
 
@@ -120,14 +115,14 @@ class QLearner:
 
         steps_between_render = 10000
         rewards = []
-        max_trials = 50000
+        max_trials = 100000
         print_step = 1000
         avg_reward = 0
         print('step, 100_episode_avg_reward')
         for i in range(max_trials):
 
             # decrease noise as we learn.
-            noise_level = 48 / (12 + i)
+            noise_level = 36 / (12 + i)
             reward = self.run_episode(env, noise_level, render=False)
 
             if i % print_step == 0:

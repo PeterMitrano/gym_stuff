@@ -1,4 +1,5 @@
 import gym
+from time import sleep
 from q_learner import QLearner
 import bloscpack as bp
 
@@ -18,6 +19,7 @@ if __name__ == "__main__":
                 env.render()
                 _, action, _ = ql.q_policy(obs, noise_level=0)
                 obs, reward, done, info = env.step([action])
+                # sleep(0.1)
                 total_reward += reward
             print(total_reward)
 
