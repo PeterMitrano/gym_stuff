@@ -1,6 +1,9 @@
 #!/usr/bin/python3
+import sys
+import time
 import os
 import matplotlib.pyplot as plt
+from gym import wrappers
 import gym
 import numpy as np
 
@@ -8,11 +11,12 @@ import numpy as np
 class HillClimbing:
 
     @staticmethod
-    def run_episode(env, parameters):
+    def run_episode(env, parameters, render=False):
         observation = env.reset()
         total_reward = 0
         for _ in range(200):
-            env.render()
+            if render:
+                env.render()
             # compute linear combination of parameters and observations
             if np.matmul(parameters, observation) < 0:
                 action = 0
@@ -35,19 +39,22 @@ class HillClimbing:
     @staticmethod
     def train(show_plot=False, upload=False):
         env = gym.make('CartPole-v0')
+        directory = '/tmp/' + os.path.basename(__file__) + '-' + str(int(time.time()))
+        if upload:
+            env = wrappers.Monitor(directory)(env)
+            env.monitored = True
+        else:
+            env.monitored = False
 
         # parameters start as random values between -1 and 1
         # EX of good params: [-0.1906  0.2306  0.4481  0.2017]
         observation_n = env.observation_space.shape[0]
         parameters = np.random.rand(observation_n) * 2 - 1
-        best_reward = 0
+        best_reward = -sys.maxsize
 
         # plotting stuff
         steps_between_plot = 40
         plt.ion()
-
-        tag = '/tmp/' + os.path.basename(__file__) + '-' + str(int(np.random.rand() * 1000))
-        env.monitor.start(tag)
 
         # 2000 episodes
         rewards = []
@@ -78,15 +85,14 @@ class HillClimbing:
                     print("game has been solved!")
                     break
 
-        env.monitor.close()
         if upload:
-            gym.upload(tag, api_key='sk_8MyNtnorQEeNtKpCwk2S8g')
+            env.close()
+            gym.upload(directory, api_key='sk_8MyNtnorQEeNtKpCwk2S8g')
 
-        np.savetxt('rewards.csv', rewards, delimiter=',')
-        return parameters, best_reward
+        return parameters
 
 
 if __name__ == "__main__":
     hc = HillClimbing()
-    r = hc.train(upload=True)
+    r = hc.train(upload=False)
     print(r)
