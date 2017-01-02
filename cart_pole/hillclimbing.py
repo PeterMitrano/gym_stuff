@@ -52,13 +52,9 @@ class HillClimbing:
         parameters = np.random.rand(observation_n) * 2 - 1
         best_reward = -sys.maxsize
 
-        # plotting stuff
-        steps_between_plot = 40
-        plt.ion()
-
         # 2000 episodes
         rewards = []
-        max_trials = 2000
+        max_trials = 10000
         avg_reward = 0
         print('step, rewards, best_reward, 100_episode_avg_reward')
         for i in range(max_trials):
@@ -70,10 +66,6 @@ class HillClimbing:
             reward = HillClimbing.run_episode(env, new_params)
             rewards.append(reward)
 
-            if show_plot and i % steps_between_plot == 0:
-                plt.plot(rewards)
-                plt.pause(0.05)
-
             print("%i, %d, %d, %f" % (i, reward, best_reward, avg_reward))
             if reward > best_reward:
                 best_reward = reward
@@ -84,6 +76,12 @@ class HillClimbing:
                 if avg_reward > 195.0:
                     print("game has been solved!")
                     break
+
+        HillClimbing.run_episode(env, parameters, render=True)
+
+        if show_plot:
+            plt.plot(rewards)
+            plt.show()
 
         if upload:
             env.close()
