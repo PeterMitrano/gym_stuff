@@ -1,6 +1,15 @@
+from scipy import stats
 import numpy as np
 import sys
 
+class Node:
+
+    def __init__(self, attr_index=0, attr_val=0, node_id=0):
+        self.attribute_index = attr_index
+        self.attribute_value = attr_val
+        self.left = None
+        self.right = None
+        self.id = node_id
 
 class UDTree:
 
@@ -9,8 +18,10 @@ class UDTree:
         self.action_dimensions = action_dimensions
         self.transition_buffer_size = 1000
         self.transition_buffer = []
-        self.stopping_criterion = None
+        self.stopping_criterion = 1.0  # no idea what this should be
         self.Q = None
+        self.root = Node(node_id=0)
+        self.next_node_id = 1
 
     def add_transition(self, sense, action, sense_prime, reward):
         trans = (sense, action, sense_prime, reward)
@@ -21,6 +32,25 @@ class UDTree:
             idx = np.random.randint(0, self.transition_buffer_size)
             self.transition_buffer[idx] = trans
 
+    def sense_to_state_id(self, sense):
+        # traverse tree to find the appropriate state
+        def _sense_to_state_id(node, sense):
+
+            attribute = sense[node.attribute_index]
+            if attribute > node.attribute_value:
+                if not node.right:
+                    return node.id
+                else:
+                    return _sense_to_state_id(node.right, sense)
+            else:
+                if not node.left:
+                    return node.id
+                else:
+                    return _sense_to_state_id(node.left, sense)
+
+        return _sense_to_state_id(self.root, sense)
+
+
     def process(self):
         print(self.transition_buffer)
         for dimension in range(self.sense_dimensions):
@@ -30,12 +60,12 @@ class UDTree:
             # loop over transitions and try splitting
             max_diff = -sys.maxsize
             max_idx = 0
-            for idx in range(sorted_t):
+            for idx, _ in enumerate(sorted_t):
                 first = sorted_t[:idx]
                 last = sorted_t[idx:]
-                difference = self.compute_diff(first, last)
+                difference, p_value = self.compute_diff(first, last)
 
-                if difference > max_diff:
+                if difference > max_diff and p_value < 0.05:
                     max_diff = difference
                     max_idx = idx
                     if difference > self.stopping_criterion:
@@ -44,7 +74,8 @@ class UDTree:
 
 
     def compute_diff(self, first, last):
-        return 0
+        ks_stat, p_value = stats.ks_2samp(first, last)
+        return(ks_stat, p_value)
 
 
 
