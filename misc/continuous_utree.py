@@ -103,14 +103,17 @@ class ContinuousUTree:
             splitting_dim = -1
             for dimension in range(self.sense_dimensions):
                 # sort data of format by q(I,a)
-                data_q = [datum[1] for datum in data]
-                sorted_q = sorted(data_q)
+                data_r = [datum[1] for datum in data]
+
+                sorted_r = sorted(data_r)
 
                 # loop over transitions and try splitting
-                for idx in range(1, len(sorted_q)):
-                    first = sorted_q[:idx]
-                    last = sorted_q[idx:]
+                for idx in range(1, len(sorted_r)):
+                    first = sorted_r[:idx]
+                    last = sorted_r[idx:]
                     k_stat, p_value = stats.ks_2samp(first, last)
+
+                    # TODO: visualize first/last to see if things are working
 
                     # .05 was used by Uther and Veloso
                     # k_stat must be between 0 and 1

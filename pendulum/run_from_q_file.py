@@ -1,6 +1,6 @@
 import gym
 from time import sleep
-from q_learner import QLearner
+from pendulum_q import QLearner
 import bloscpack as bp
 
 if __name__ == "__main__":

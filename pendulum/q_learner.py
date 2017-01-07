@@ -11,18 +11,16 @@ import numpy as np
 
 class QLearner:
 
-    def __init__(self):
+    def __init__(self, state_bounds, action_bounds):
         # input is sin(theta), cos(theta), and dtheta
         # we discretize these quantities as follows
-        self.state_bounds = []
-        self.state_bounds.append([-np.pi, np.pi, np.pi/24])
-        self.state_bounds.append([-8, 8, 0.02])
+        self.state_bounds = state_bounds
         self.state_dims = []
         for bound in self.state_bounds:
             dim_n = (bound[1] - bound[0]) // bound[2] + 1
             self.state_dims.append(dim_n)
 
-        self.action_bounds = [-2, 2, 0.2]
+        self.action_bounds = action_bounds
         self.action_n = (self.action_bounds[1] - self.action_bounds[0]) // self.action_bounds[2] + 1
 
         self.epsilon = 1e-8
@@ -103,48 +101,3 @@ class QLearner:
                 break
 
         return total_reward
-
-    def train(self, upload=False):
-        env = gym.make('Pendulum-v0')
-        directory = '/tmp/' + os.path.basename(__file__) + '-' + str(int(time.time()))
-        if upload:
-            env = wrappers.Monitor(directory)(env)
-            env.monitored = True
-        else:
-            env.monitored = False
-
-        steps_between_render = 10000
-        rewards = []
-        max_trials = 100000
-        print_step = 1000
-        avg_reward = 0
-        print('step, 100_episode_avg_reward')
-        for i in range(max_trials):
-
-            # decrease noise as we learn.
-            noise_level = 36 / (12 + i)
-            reward = self.run_episode(env, noise_level, render=False)
-
-            if i % print_step == 0:
-                rewards.append(reward)
-                print("%i, %d" % (i, avg_reward))
-
-            last_100 = rewards[-100:]
-            rewards = last_100
-            avg_reward = sum(rewards) / len(last_100)
-            if avg_reward > -300.0 and len(last_100) == 100:
-                print("game has been solved!")
-                break
-
-        # save q table
-        bp.pack_ndarray_file(self.Q, 'q_table.bp')
-
-        # upload/end monitoring
-        if upload:
-            env.close()
-            gym.upload(directory, api_key='sk_8MyNtnorQEeNtKpCwk2S8g')
-
-
-if __name__ == "__main__":
-    ql = QLearner()
-    ql.train(upload=False)
