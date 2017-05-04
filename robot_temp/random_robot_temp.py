@@ -10,7 +10,7 @@ if __name__ == "__main__":
         while True:
             temp = random.randint(0, 2)
             move = int(random.random() + 0.5)
-            # env.render()
+            env.render()
             obs, reward, done, info = env.step([move, temp])
             # print(obs, reward)
 
