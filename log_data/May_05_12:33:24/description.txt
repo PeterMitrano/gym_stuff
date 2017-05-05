@@ -1,0 +1,2 @@
++tensorboard logging
++envoke vim to write these descriptions
