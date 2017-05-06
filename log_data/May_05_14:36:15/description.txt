@@ -1,1 +1,0 @@
-model with just 4 hidden units

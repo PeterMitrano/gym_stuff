@@ -1,2 +1,0 @@
-refactor model into class so I can use the same variable names
-as tensor ops and as logging variables and it won't overwrite the tensor op

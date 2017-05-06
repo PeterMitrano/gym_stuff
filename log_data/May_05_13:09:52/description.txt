@@ -1,2 +1,0 @@
-re-running to see if low loss is reproducable
-last run was very low

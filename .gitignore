@@ -1,4 +1,5 @@
 gym
+log_data
 .ipynb_checkpoints
 *.pyc
 .idea
