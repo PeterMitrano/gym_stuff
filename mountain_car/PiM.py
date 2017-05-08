@@ -120,19 +120,24 @@ class PolicyInModel:
         env = gym.make('MountainCar-v0')
         directory = '/tmp/' + os.path.basename(__file__) + '-' + str(int(time.time()))
         if upload:
-            env = wrappers.Monitor(directory)(env)
+            env = wrappers.Monitor(env, directory)
             env.monitored = True
         else:
             env.monitored = False
 
-        stamp = "{:%B_%d_%H:%M:%S}".format(datetime.now())
-        log_dir = 'log_data/' + stamp + "/"
-        tb_writer = tf.summary.FileWriter(log_dir)
+        day_str = "{:%B_%d}".format(datetime.now())
+        time_str = "{:%H:%M:%S}".format(datetime.now())
+        day_dir = "log_data/" + day_str + "/"
+        log_path = day_dir + time_str + "/"
+        if not os.path.exists(day_dir):
+            os.mkdir(day_dir)
+
+        tb_writer = tf.summary.FileWriter(log_path)
 
         # Open text editor to write description of the run and commit it
         if '--temp' not in sys.argv:
             cmd = ['git',  'commit', __file__]
-            os.environ['TF_LOG_DIR'] = log_dir
+            os.environ['TF_LOG_DIR'] = log_path
             call(cmd)
 
         with tf.Session() as sess:
