@@ -67,7 +67,7 @@ class PolicyInModel:
                     axis=0)
                 self.model_input = tf.concat((self.state, self.manual_action_one_hot), axis=1, name='concat')
 
-            self.model_h1_dim = 4
+            self.model_h1_dim = 2
             self.model_w1 = tf.Variable(tf.truncated_normal([self.state_dim + self.action_dim, self.model_h1_dim], 0, 0.01), name='model_w1')
             self.model_b1 = tf.Variable(tf.constant(0.1, shape=[self.model_h1_dim]), name='model_b1')
             self.model_h1 = tf.nn.relu(tf.matmul(self.model_input, self.model_w1) + self.model_b1)
@@ -103,7 +103,7 @@ class PolicyInModel:
         self.initial_learning_rate = 0.01
         self.global_step = tf.Variable(0, trainable=False)
         self.learning_rate = tf.train.exponential_decay(self.initial_learning_rate, self.global_step,
-                                                        20 * self.episode_max_iters, 0.90)
+                                                        20 * self.episode_max_iters, 0.95)
         self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
         self.train_model = self.optimizer.minimize(self.model_loss, var_list=self.model_vars,
                                                    global_step=self.global_step)
@@ -193,6 +193,8 @@ class PolicyInModel:
                     if done:
                         break
 
+                if i % 50 == 0:
+                    print(i)
             print(sess.run(self.model_vars))
 
         if upload:
