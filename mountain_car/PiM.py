@@ -85,13 +85,10 @@ class PolicyInModel:
             self.policy_loss = -tf.nn.l2_loss(self.state_change, name='policy_loss')
             self.model_loss = tf.nn.l2_loss((self.predicted_next_state - self.true_next_state) / self.state_sizes,
                                             name='model_loss')
-            self.model_error = tf.reduce_sum(tf.abs(self.predicted_next_state - self.true_next_state),
-                                             name='model_error')
 
             tf.summary.histogram("state_change", tf.abs(self.state_change))
             tf.summary.scalar("policy_loss", self.policy_loss)
             tf.summary.scalar("model_loss", self.model_loss)
-            tf.summary.scalar("model_error", self.model_error)
 
         if self.on_policy_learning:
             with tf.name_scope("policy_gradients"):
