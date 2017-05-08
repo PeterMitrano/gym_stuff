@@ -100,10 +100,10 @@ class PolicyInModel:
             for grad, var in grads:
                 tf.summary.histogram(var.name + '/gradient', grad)
 
-        self.initial_learning_rate = 0.02
+        self.initial_learning_rate = 0.01
         self.global_step = tf.Variable(0, trainable=False)
         self.learning_rate = tf.train.exponential_decay(self.initial_learning_rate, self.global_step,
-                                                        20 * self.episode_max_iters, 0.95)
+                                                        20 * self.episode_max_iters, 0.90)
         self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
         self.train_model = self.optimizer.minimize(self.model_loss, var_list=self.model_vars,
                                                    global_step=self.global_step)
@@ -145,7 +145,7 @@ class PolicyInModel:
             tb_writer.add_graph(sess.graph)
             sess.run(self.init)
 
-            for i in range(600):
+            for i in range(500):
                 episode_iters = 0
                 total_reward = 0
                 observation = env.reset()
