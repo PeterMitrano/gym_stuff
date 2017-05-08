@@ -68,10 +68,12 @@ class PolicyInModel:
                 self.model_input = tf.concat((self.state, self.manual_action_one_hot), axis=1, name='concat')
 
             self.model_h1_dim = 20
-            self.model_w1 = tf.Variable(tf.truncated_normal([self.state_dim + self.action_dim, self.model_h1_dim], 0, 0.01), name='model_w1')
+            self.model_w1 = tf.Variable(
+                tf.truncated_normal([self.state_dim + self.action_dim, self.model_h1_dim], 0, 0.01), name='model_w1')
             self.model_b1 = tf.Variable(tf.constant(0.1, shape=[self.model_h1_dim]), name='model_b1')
             self.model_h1 = tf.nn.relu(tf.matmul(self.model_input, self.model_w1) + self.model_b1)
-            self.model_w2 = tf.Variable(tf.truncated_normal([self.model_h1_dim, self.state_dim], 0, 0.01), name='model_w2')
+            self.model_w2 = tf.Variable(tf.truncated_normal([self.model_h1_dim, self.state_dim], 0, 0.01),
+                                        name='model_w2')
             self.model_b2 = tf.Variable(tf.constant(0.1, shape=[self.state_dim]), name='model_b2')
             self.predicted_next_state = tf.matmul(self.model_h1, self.model_w2) + self.model_b2
             self.model_vars = [self.model_w1]
@@ -86,8 +88,9 @@ class PolicyInModel:
         with tf.name_scope("loss"):
             self.state_change = self.predicted_next_state - self.state
             self.policy_loss = -tf.nn.l2_loss(self.state_change, name='policy_loss')
+            alpha = 1e-3
             self.model_loss = tf.nn.l2_loss((self.predicted_next_state - self.true_next_state) / self.state_sizes,
-                                            name='model_loss')
+                                            name='model_loss') + alpha * tf.nn.l2_loss(self.model_w1)
 
             tf.summary.histogram("state_change", tf.abs(self.state_change))
             tf.summary.scalar("policy_loss", self.policy_loss)
@@ -105,7 +108,7 @@ class PolicyInModel:
                 tf.summary.histogram(var.name + '/gradient', grad)
 
         self.initial_learning_rate = 0.08
-        self.decay_rate = 0.99
+        self.decay_rate = 0.95
         self.global_step = tf.Variable(0, trainable=False)
         self.learning_rate = tf.train.exponential_decay(self.initial_learning_rate, self.global_step,
                                                         20 * self.episode_max_iters, self.decay_rate)
