@@ -76,6 +76,10 @@ class PolicyInModel:
             self.predicted_next_state = tf.matmul(self.model_h1, self.model_w2) + self.model_b2
             self.model_vars = [self.model_w1]
 
+            tf.summary.histogram("model_w1", self.model_w1)
+            tf.summary.histogram("model_b1", self.model_b1)
+            tf.summary.histogram("model_w2", self.model_w2)
+            tf.summary.histogram("model_b2", self.model_b2)
             tf.summary.scalar("predicted_position", self.predicted_next_state[0][0])
             tf.summary.scalar("predicted_velocity", self.predicted_next_state[0][1])
 
