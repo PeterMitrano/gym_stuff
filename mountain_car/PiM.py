@@ -100,7 +100,7 @@ class PolicyInModel:
             for grad, var in grads:
                 tf.summary.histogram(var.name + '/gradient', grad)
 
-        self.initial_learning_rate = 0.001
+        self.initial_learning_rate = 0.02
         self.global_step = tf.Variable(0, trainable=False)
         self.learning_rate = tf.train.exponential_decay(self.initial_learning_rate, self.global_step,
                                                         10 * self.episode_max_iters, 0.90)
