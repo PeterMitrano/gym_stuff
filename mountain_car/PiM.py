@@ -101,14 +101,11 @@ class PolicyInModel:
                 tf.summary.histogram(var.name + '/gradient', grad)
 
         self.initial_learning_rate = 0.08
-        decay_rate = False
+        self.decay_rate = 0.99
         self.global_step = tf.Variable(0, trainable=False)
-        if decay_rate:
-            self.learning_rate = tf.train.exponential_decay(self.initial_learning_rate, self.global_step,
-                                                            20 * self.episode_max_iters, 0.90)
-            self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
-        else:
-            self.optimizer = tf.train.GradientDescentOptimizer(self.initial_learning_rate)
+        self.learning_rate = tf.train.exponential_decay(self.initial_learning_rate, self.global_step,
+                                                        20 * self.episode_max_iters, self.decay_rate)
+        self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
         self.train_model = self.optimizer.minimize(self.model_loss, var_list=self.model_vars,
                                                    global_step=self.global_step)
         if self.on_policy_learning:
@@ -116,8 +113,7 @@ class PolicyInModel:
                                                         global_step=self.global_step)
 
         self.init = tf.global_variables_initializer()
-        if decay_rate:
-            tf.summary.scalar("learning_rate", self.learning_rate)
+        tf.summary.scalar("learning_rate", self.learning_rate)
 
         self.merged_summary = tf.summary.merge_all()
 
