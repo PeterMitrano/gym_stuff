@@ -67,12 +67,14 @@ class PolicyInModel:
                     axis=0)
                 self.model_input = tf.concat((self.state, self.manual_action_one_hot), axis=1, name='concat')
 
-            self.model_w1 = tf.Variable(tf.truncated_normal([self.state_dim + self.action_dim, self.state_dim], 0, 0.01),
-                                        name='model_w1')
+            self.model_w1 = tf.Variable(
+                tf.truncated_normal([self.state_dim + self.action_dim, self.state_dim], 0, 0.01),
+                name='model_w1')
             # self.model_w1 = tf.Variable(
             #     [[1.00, -0.0025], [1, 0], [-0.001, 0], [0, 0],
             #      [0.001, 0]], name='model_w1')
-            self.predicted_next_state = tf.matmul(self.model_input, self.model_w1)
+            self.model_b1 = tf.Variable(tf.constant(0.1, shape=[self.state_dim]), name='model_b1')
+            self.predicted_next_state = tf.matmul(self.model_input, self.model_w1) + self.model_b1
             self.model_vars = [self.model_w1]
 
             tf.summary.scalar("predicted_position", self.predicted_next_state[0][0])
@@ -81,8 +83,10 @@ class PolicyInModel:
         with tf.name_scope("loss"):
             self.state_change = self.predicted_next_state - self.state
             self.policy_loss = -tf.nn.l2_loss(self.state_change, name='policy_loss')
-            self.model_loss = tf.nn.l2_loss((self.predicted_next_state - self.true_next_state) / self.state_sizes, name='model_loss')
-            self.model_error = tf.reduce_sum(tf.abs(self.predicted_next_state - self.true_next_state), name='model_error')
+            self.model_loss = tf.nn.l2_loss((self.predicted_next_state - self.true_next_state) / self.state_sizes,
+                                            name='model_loss')
+            self.model_error = tf.reduce_sum(tf.abs(self.predicted_next_state - self.true_next_state),
+                                             name='model_error')
 
             tf.summary.histogram("state_change", tf.abs(self.state_change))
             tf.summary.scalar("policy_loss", self.policy_loss)
@@ -136,7 +140,7 @@ class PolicyInModel:
 
         # Open text editor to write description of the run and commit it
         if '--temp' not in sys.argv:
-            cmd = ['git',  'commit', __file__]
+            cmd = ['git', 'commit', __file__]
             os.environ['TF_LOG_DIR'] = log_path
             call(cmd)
 
