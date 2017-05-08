@@ -100,7 +100,7 @@ class PolicyInModel:
             for grad, var in grads:
                 tf.summary.histogram(var.name + '/gradient', grad)
 
-        self.initial_learning_rate = 0.002
+        self.initial_learning_rate = 0.001
         self.global_step = tf.Variable(0, trainable=False)
         self.learning_rate = tf.train.exponential_decay(self.initial_learning_rate, self.global_step,
                                                         3 * self.episode_max_iters, 0.95)
@@ -179,8 +179,9 @@ class PolicyInModel:
                         # random manual policy
                         action = np.random.randint(0, self.action_dim)
 
-                    summary, step = sess.run([self.merged_summary, self.global_step], feed_dict)
-                    tb_writer.add_summary(summary, step)
+                    if episode_iters % 5 == 0:
+                        summary, step = sess.run([self.merged_summary, self.global_step], feed_dict)
+                        tb_writer.add_summary(summary, step)
 
                     observation = next_observation
                     next_observation, reward, done, info = env.step(action)
