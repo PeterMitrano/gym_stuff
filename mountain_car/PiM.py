@@ -19,6 +19,7 @@ class PolicyInModel:
         self.state_bounds = np.array([[-1.2, 0.6], [-0.07, 0.07]])
         self.state_sizes = self.state_bounds[:, 1] - self.state_bounds[:, 0]
         self.action_dim = 3
+        self.episode_max_iters = 400
         self.on_policy_learning = False
 
         with tf.name_scope("fed_values"):
@@ -61,12 +62,16 @@ class PolicyInModel:
             if self.on_policy_learning:
                 self.model_input = tf.concat((self.state, self.policy_action_float), axis=1, name='concat')
             else:
-                self.manual_action_float = tf.expand_dims(
+                self.manual_action_one_hot = tf.expand_dims(
                     tf.one_hot(self.manual_action, self.action_dim, dtype=tf.float32, name='manual_action_float'),
                     axis=0)
-                self.model_input = tf.concat((self.state, self.manual_action_float), axis=1, name='concat')
+                self.model_input = tf.concat((self.state, self.manual_action_one_hot), axis=1, name='concat')
 
-            self.model_w1 = tf.Variable([[-.0075, 1], [1, 0], [-0.001, 0], [0, 0], [0.001, 0]], name='model_w1')
+            self.model_w1 = tf.Variable(tf.truncated_normal([self.state_dim + self.action_dim, self.state_dim], 0, 0.1),
+                                        name='model_w1')
+            # self.model_w1 = tf.Variable(
+            #     [[1.00, -0.0025], [1, 0], [-0.001, 0], [0, 0],
+            #      [0.001, 0]], name='model_w1')
             self.predicted_next_state = tf.matmul(self.model_input, self.model_w1)
             self.model_vars = [self.model_w1]
 
@@ -76,11 +81,13 @@ class PolicyInModel:
         with tf.name_scope("loss"):
             self.state_change = self.predicted_next_state - self.state
             self.policy_loss = -tf.nn.l2_loss(self.state_change, name='policy_loss')
-            self.model_loss = tf.nn.l2_loss((self.predicted_next_state - self.true_next_state) / self.state_sizes,
-                                            name='model_loss')
+            self.model_loss = tf.nn.l2_loss((self.predicted_next_state - self.true_next_state) / self.state_sizes, name='model_loss')
+            self.model_error = tf.reduce_sum(tf.abs(self.predicted_next_state - self.true_next_state), name='model_error')
+
             tf.summary.histogram("state_change", tf.abs(self.state_change))
             tf.summary.scalar("policy_loss", self.policy_loss)
             tf.summary.scalar("model_loss", self.model_loss)
+            tf.summary.scalar("model_error", self.model_error)
 
         if self.on_policy_learning:
             with tf.name_scope("policy_gradients"):
@@ -93,9 +100,10 @@ class PolicyInModel:
             for grad, var in grads:
                 tf.summary.histogram(var.name + '/gradient', grad)
 
-        self.initial_learning_rate = 0.1
+        self.initial_learning_rate = 0.002
         self.global_step = tf.Variable(0, trainable=False)
-        self.learning_rate = tf.train.exponential_decay(self.initial_learning_rate, self.global_step, 1000, 0.9)
+        self.learning_rate = tf.train.exponential_decay(self.initial_learning_rate, self.global_step,
+                                                        3 * self.episode_max_iters, 0.95)
         self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
         self.train_model = self.optimizer.minimize(self.model_loss, var_list=self.model_vars,
                                                    global_step=self.global_step)
@@ -104,6 +112,7 @@ class PolicyInModel:
                                                         global_step=self.global_step)
 
         self.init = tf.global_variables_initializer()
+        tf.summary.scalar("learning_rate", self.learning_rate)
 
         self.merged_summary = tf.summary.merge_all()
 
@@ -120,23 +129,26 @@ class PolicyInModel:
         log_dir = 'log_data/' + stamp + "/"
         tb_writer = tf.summary.FileWriter(log_dir)
 
-        # Open text editor to write description of the run
-        if '--novim' not in sys.argv:
-            call(['vim', log_dir + '/description.txt'])
+        # Open text editor to write description of the run and commit it
+        if '--temp' not in sys.argv:
+            cmd = ['git',  'commit', __file__]
+            os.environ['TF_LOG_DIR'] = log_dir
+            call(cmd)
 
         with tf.Session() as sess:
 
             tb_writer.add_graph(sess.graph)
             sess.run(self.init)
 
-            for i in range(1500):
+            for i in range(500):
                 episode_iters = 0
                 total_reward = 0
                 observation = env.reset()
-                action = np.random.randint(0, 3)
+                # random initial action
+                action = np.random.randint(0, self.action_dim)
                 next_observation = env.step(action)[0]
 
-                while episode_iters < 400:
+                while episode_iters < self.episode_max_iters:
 
                     feed_dict = {
                         self.state: [observation],
@@ -145,20 +157,22 @@ class PolicyInModel:
                         self.reward: total_reward
                     }
 
-                    m_loss, next_state = sess.run([self.model_loss, self.predicted_next_state],
+                    _, m_loss, next_state = sess.run([self.train_model, self.model_loss, self.predicted_next_state],
                                                      feed_dict)
                     if self.on_policy_learning:
                         _, p_loss, action = sess.run([self.train_policy, self.policy_loss, self.policy_action],
                                                      feed_dict)
 
-                    print('%f %f %f %f' % (next_state[0][1], next_state[0][0], next_observation[0], next_observation[1]))
                     # comment this back in for off-policy learning
-                    speed = observation[1]
+                    if not self.on_policy_learning:
+                        # sensible manual policy based only on velocity
+                        if observation[1] < 0:
+                            action = 0
+                        else:
+                            action = 2
 
-                    if speed < 0:
-                        action = 0
-                    else:
-                        action = 2
+                        # random manual policy
+                        action = np.random.randint(0, self.action_dim)
 
                     summary, step = sess.run([self.merged_summary, self.global_step], feed_dict)
                     tb_writer.add_summary(summary, step)
@@ -172,6 +186,8 @@ class PolicyInModel:
 
                     if done:
                         break
+
+            print(sess.run(self.model_vars))
 
         if upload:
             env.close()
