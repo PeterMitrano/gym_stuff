@@ -128,7 +128,7 @@ class PolicyInModel:
         day_str = "{:%B_%d}".format(datetime.now())
         time_str = "{:%H:%M:%S}".format(datetime.now())
         day_dir = "log_data/" + day_str + "/"
-        log_path = day_dir + time_str + "/"
+        log_path = day_dir + day_str + "_" + time_str + "/"
         if not os.path.exists(day_dir):
             os.mkdir(day_dir)
 
