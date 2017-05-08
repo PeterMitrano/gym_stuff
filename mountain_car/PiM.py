@@ -150,7 +150,7 @@ class PolicyInModel:
             tb_writer.add_graph(sess.graph)
             sess.run(self.init)
 
-            for i in range(500):
+            for i in range(700):
                 episode_iters = 0
                 total_reward = 0
                 observation = env.reset()
