@@ -67,11 +67,11 @@ class PolicyInModel:
                     axis=0)
                 self.model_input = tf.concat((self.state, self.manual_action_one_hot), axis=1, name='concat')
 
-            # self.model_w1 = tf.Variable(tf.truncated_normal([self.state_dim + self.action_dim, self.state_dim], 0, 0.1),
-            #                             name='model_w1')
-            self.model_w1 = tf.Variable(
-                [[1.00, -0.0025], [1, 0], [-0.001, 0], [0, 0],
-                 [0.001, 0]], name='model_w1')
+            self.model_w1 = tf.Variable(tf.truncated_normal([self.state_dim + self.action_dim, self.state_dim], 0, 0.01),
+                                        name='model_w1')
+            # self.model_w1 = tf.Variable(
+            #     [[1.00, -0.0025], [1, 0], [-0.001, 0], [0, 0],
+            #      [0.001, 0]], name='model_w1')
             self.predicted_next_state = tf.matmul(self.model_input, self.model_w1)
             self.model_vars = [self.model_w1]
 
