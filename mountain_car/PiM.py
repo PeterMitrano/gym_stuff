@@ -46,7 +46,8 @@ class PolicyInModel:
                 # self.policy_b2 = tf.Variable(tf.constant(0.1, shape=[self.action_dim]), name='policy_b2')
                 # self.policy_action_float = tf.nn.softmax(tf.matmul(self.policy_h1, self.policy_w2, name='matmul1') + self.policy_b2)
 
-                self.policy_w1 = tf.Variable([[0, 0, 0], [-1, 0, 1.]], name='policy_w1')
+                # self.policy_w1 = tf.Variable([[0, 0, 0], [-1, 0, 1.]], name='policy_w1')
+                self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.action_dim], 0, 0.01), name='policy_w1')
                 self.policy_action_float = tf.matmul(self.state, self.policy_w1, name='matmul1')
                 self.policy_action_softmax = tf.nn.softmax(self.policy_action_float)
                 self.policy_action = tf.argmax(self.policy_action_float, axis=1)[0]
@@ -67,14 +68,18 @@ class PolicyInModel:
             if self.on_policy_learning:
                 self.model_input = tf.concat((self.state, self.policy_action_softmax), axis=1, name='concat')
             else:
-                self.manual_action_one_hot = tf.expand_dims(tf.one_hot(self.manual_action, self.action_dim, dtype=tf.float32, name='manual_action_float'), axis=0)
+                self.manual_action_one_hot = tf.expand_dims(
+                    tf.one_hot(self.manual_action, self.action_dim, dtype=tf.float32, name='manual_action_float'),
+                    axis=0)
                 self.model_input = tf.concat((self.state, self.manual_action_one_hot), axis=1, name='concat')
 
             self.model_h1_dim = 10
-            self.model_w1 = tf.Variable(tf.truncated_normal([self.state_dim + self.action_dim, self.model_h1_dim], 0, 0.01), name='model_w1')
+            self.model_w1 = tf.Variable(
+                tf.truncated_normal([self.state_dim + self.action_dim, self.model_h1_dim], 0, 0.01), name='model_w1')
             self.model_b1 = tf.Variable(tf.constant(0.1, shape=[self.model_h1_dim]), name='model_b1')
             self.model_h1 = tf.nn.relu(tf.matmul(self.model_input, self.model_w1) + self.model_b1)
-            self.model_w2 = tf.Variable(tf.truncated_normal([self.model_h1_dim, self.state_dim], 0, 0.01), name='model_w2')
+            self.model_w2 = tf.Variable(tf.truncated_normal([self.model_h1_dim, self.state_dim], 0, 0.01),
+                                        name='model_w2')
             self.model_b2 = tf.Variable(tf.constant(0.1, shape=[self.state_dim]), name='model_b2')
             self.predicted_next_state = tf.matmul(self.model_h1, self.model_w2) + self.model_b2
             self.model_vars = [self.model_w1]
@@ -176,7 +181,7 @@ class PolicyInModel:
                                                      feed_dict)
                     if self.on_policy_learning:
                         p_loss, action = sess.run([self.policy_loss, self.policy_action],
-                                                     feed_dict)
+                                                  feed_dict)
 
                     # comment this back in for off-policy learning
                     if not self.on_policy_learning:
