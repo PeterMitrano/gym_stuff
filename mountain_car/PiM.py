@@ -20,6 +20,7 @@ class PolicyInModel:
         self.state_sizes = self.state_bounds[:, 1] - self.state_bounds[:, 0]
         self.action_dim = 3
         self.episode_max_iters = 400
+        # self.on_policy_learning = True
         self.on_policy_learning = False
 
         with tf.name_scope("fed_values"):
@@ -33,30 +34,33 @@ class PolicyInModel:
 
         if self.on_policy_learning:
             with tf.name_scope('policy'):
-                self.policy_h1_dim = 5
-                self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.policy_h1_dim], 0, 0.1),
-                                             name='policy_w1')
-                self.policy_b1 = tf.Variable(tf.constant(0.1, shape=[self.policy_h1_dim]), name='policy_b1')
-                self.policy_h1 = tf.nn.relu(tf.matmul(self.state, self.policy_w1, name='matmul1') + self.policy_b1,
-                                            name='relu')
+                # self.policy_h1_dim = 5
+                # self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.policy_h1_dim], 0, 0.1),
+                #                              name='policy_w1')
+                # self.policy_b1 = tf.Variable(tf.constant(0.1, shape=[self.policy_h1_dim]), name='policy_b1')
+                # self.policy_h1 = tf.nn.relu(tf.matmul(self.state, self.policy_w1, name='matmul1') + self.policy_b1,
+                #                             name='relu')
+                #
+                # self.policy_w2 = tf.Variable(tf.truncated_normal((self.policy_h1_dim, self.action_dim), 0, 0.1),
+                #                              name='policy_w2')
+                # self.policy_b2 = tf.Variable(tf.constant(0.1, shape=[self.action_dim]), name='policy_b2')
+                # self.policy_action_float = tf.nn.softmax(tf.matmul(self.policy_h1, self.policy_w2, name='matmul1') + self.policy_b2)
 
-                self.policy_w2 = tf.Variable(tf.truncated_normal((self.policy_h1_dim, self.action_dim), 0, 0.1),
-                                             name='policy_w2')
-                self.policy_b2 = tf.Variable(tf.constant(0.1, shape=[self.action_dim]), name='policy_b2')
-                self.policy_action_float = tf.nn.softmax(
-                    tf.matmul(self.policy_h1, self.policy_w2, name='matmul1') + self.policy_b2)
+                self.policy_w1 = tf.Variable([[0, 0, 0], [-1, 0, 1.]], name='policy_w1')
+                self.policy_action_float = tf.nn.softmax(tf.matmul(self.state, self.policy_w1, name='matmul1'))
                 self.policy_action = tf.argmax(self.policy_action_float, axis=1)[0]
-                self.policy_vars = [self.policy_w1, self.policy_b1, self.policy_w2, self.policy_b2]
+                self.policy_vars = [self.policy_w1]
 
                 tf.summary.histogram('policy_w1', self.policy_w1)
-                tf.summary.histogram('policy_b1', self.policy_b1)
-                tf.summary.histogram('policy_w2', self.policy_w2)
-                tf.summary.histogram('policy_b2', self.policy_b2)
+                # tf.summary.histogram('policy_b1', self.policy_b1)
+                # tf.summary.histogram('policy_w2', self.policy_w2)
+                # tf.summary.histogram('policy_b2', self.policy_b2)
 
         with tf.name_scope("action"):
             if self.on_policy_learning:
                 tf.summary.scalar("policy_action", self.policy_action)
-            tf.summary.scalar("manual_action", self.manual_action)
+            else:
+                tf.summary.scalar("manual_action", self.manual_action)
 
         with tf.name_scope('model'):
             if self.on_policy_learning:
@@ -155,6 +159,7 @@ class PolicyInModel:
 
             for i in range(1500):
                 episode_iters = 0
+                done = False
                 total_reward = 0
                 observation = env.reset()
                 # random initial action
@@ -184,9 +189,6 @@ class PolicyInModel:
                         else:
                             action = 2
 
-                        # random manual policy
-                        action = np.random.randint(0, self.action_dim)
-
                     if episode_iters % 5 == 0:
                         summary, step = sess.run([self.merged_summary, self.global_step], feed_dict)
                         tb_writer.add_summary(summary, step)
@@ -203,7 +205,6 @@ class PolicyInModel:
 
                 if i % 50 == 0:
                     print(i)
-            print(sess.run(self.model_vars))
 
         if upload:
             env.close()
