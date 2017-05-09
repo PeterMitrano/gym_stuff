@@ -47,7 +47,7 @@ class PolicyInModel:
                 # self.policy_action_float = tf.nn.softmax(tf.matmul(self.policy_h1, self.policy_w2, name='matmul1') + self.policy_b2)
 
                 # self.policy_w1 = tf.Variable([[0, 0, 0], [-1, 0, 1.]], name='policy_w1')
-                self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.action_dim], 0, 0.01), name='policy_w1')
+                self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.action_dim], 0, 0.1), name='policy_w1')
                 self.policy_action_float = tf.matmul(self.state, self.policy_w1, name='matmul1')
                 self.policy_action_softmax = tf.nn.softmax(self.policy_action_float)
                 self.policy_action = tf.argmax(self.policy_action_float, axis=1)[0]
