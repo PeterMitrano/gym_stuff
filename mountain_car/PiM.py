@@ -48,8 +48,8 @@ class PolicyInModel:
 
                 self.policy_w1 = tf.Variable([[0, 0, 0], [-1, 0, 1.]], name='policy_w1')
                 self.policy_action_float = tf.matmul(self.state, self.policy_w1, name='matmul1')
+                self.policy_action_softmax = tf.nn.softmax(self.policy_action_float)
                 self.policy_action = tf.argmax(self.policy_action_float, axis=1)[0]
-                self.policy_action_one_hot = tf.expand_dims(tf.one_hot(self.policy_action, self.action_dim, name='action_one_hot'), axis=0)
                 self.policy_vars = [self.policy_w1]
 
                 tf.summary.histogram('policy_w1', self.policy_w1)
@@ -65,7 +65,7 @@ class PolicyInModel:
 
         with tf.name_scope('model'):
             if self.on_policy_learning:
-                self.model_input = tf.concat((self.state, self.policy_action_one_hot), axis=1, name='concat')
+                self.model_input = tf.concat((self.state, self.policy_action_softmax), axis=1, name='concat')
             else:
                 self.manual_action_one_hot = tf.expand_dims(tf.one_hot(self.manual_action, self.action_dim, dtype=tf.float32, name='manual_action_float'), axis=0)
                 self.model_input = tf.concat((self.state, self.manual_action_one_hot), axis=1, name='concat')
@@ -97,11 +97,11 @@ class PolicyInModel:
             tf.summary.scalar("policy_loss", self.policy_loss)
             tf.summary.scalar("model_loss", self.model_loss)
 
-        # if self.on_policy_learning:
-        #     with tf.name_scope("policy_gradients"):
-        #         grads = list(zip(tf.gradients(self.policy_loss, self.policy_vars), self.policy_vars))
-        #         for grad, var in grads:
-        #             tf.summary.histogram(var.name + '/gradient', grad)
+        if self.on_policy_learning:
+            with tf.name_scope("policy_gradients"):
+                grads = list(zip(tf.gradients(self.policy_loss, self.policy_vars), self.policy_vars))
+                for grad, var in grads:
+                    tf.summary.histogram(var.name + '/gradient', grad)
 
         with tf.name_scope("model_gradients"):
             grads = list(zip(tf.gradients(self.model_loss, self.model_vars), self.model_vars))
@@ -116,9 +116,9 @@ class PolicyInModel:
         self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
         self.train_model = self.optimizer.minimize(self.model_loss, var_list=self.model_vars,
                                                    global_step=self.global_step)
-        # if self.on_policy_learning:
-        #     self.train_policy = self.optimizer.minimize(self.policy_loss, var_list=self.policy_vars,
-        #                                                 global_step=self.global_step)
+        if self.on_policy_learning:
+            self.train_policy = self.optimizer.minimize(self.policy_loss, var_list=self.policy_vars,
+                                                        global_step=self.global_step)
 
         self.init = tf.global_variables_initializer()
         tf.summary.scalar("learning_rate", self.learning_rate)
@@ -153,10 +153,10 @@ class PolicyInModel:
 
             tb_writer.add_graph(sess.graph)
             sess.run(self.init)
+            c = 0
 
             for i in range(1500):
                 episode_iters = 0
-                done = False
                 total_reward = 0
                 observation = env.reset()
                 # random initial action
@@ -175,7 +175,7 @@ class PolicyInModel:
                     _, m_loss, next_state = sess.run([self.train_model, self.model_loss, self.predicted_next_state],
                                                      feed_dict)
                     if self.on_policy_learning:
-                        _, p_loss, action = sess.run([self.train_policy, self.policy_loss, self.policy_action],
+                        p_loss, action = sess.run([self.policy_loss, self.policy_action],
                                                      feed_dict)
 
                     # comment this back in for off-policy learning
@@ -200,10 +200,11 @@ class PolicyInModel:
                     # env.render()
 
                     if done:
+                        c += 1
                         break
 
                 if i % 50 == 0:
-                    print(i)
+                    print("successes:", c, "iterations:", i)
 
         if upload:
             env.close()
