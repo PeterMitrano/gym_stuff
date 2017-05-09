@@ -67,7 +67,7 @@ class PolicyInModel:
                     axis=0)
                 self.model_input = tf.concat((self.state, self.manual_action_one_hot), axis=1, name='concat')
 
-            self.model_h1_dim = 50
+            self.model_h1_dim = 5
             self.model_w1 = tf.Variable(
                 tf.truncated_normal([self.state_dim + self.action_dim, self.model_h1_dim], 0, 0.01), name='model_w1')
             self.model_b1 = tf.Variable(tf.constant(0.1, shape=[self.model_h1_dim]), name='model_b1')
