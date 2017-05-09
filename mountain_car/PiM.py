@@ -189,6 +189,9 @@ class PolicyInModel:
                         else:
                             action = 2
 
+                        # FIXME
+                        # action = np.random.randint(0, self.action_dim)
+
                     if episode_iters % 5 == 0:
                         summary, step = sess.run([self.merged_summary, self.global_step], feed_dict)
                         tb_writer.add_summary(summary, step)
