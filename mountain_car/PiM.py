@@ -168,7 +168,7 @@ class PolicyInModel:
                 action = np.random.randint(0, self.action_dim)
                 next_observation = env.step(action)[0]
 
-                while episode_iters < self.episode_max_iters:
+                while True:
 
                     feed_dict = {
                         self.state: [observation],
@@ -202,11 +202,12 @@ class PolicyInModel:
                     total_reward += reward
                     episode_iters += 1
 
-                    if i % 50 == 0:
-                        env.render()
+                    # if i % 50 == 0:
+                        # env.render()
 
                     if done:
-                        c += 1
+                        if episode_iters < 199:
+                            c += 1
                         break
 
                 if i % 50 == 0:
