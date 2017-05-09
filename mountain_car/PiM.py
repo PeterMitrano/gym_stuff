@@ -202,7 +202,8 @@ class PolicyInModel:
                     total_reward += reward
                     episode_iters += 1
 
-                    # env.render()
+                    if i % 50 == 0:
+                        env.render()
 
                     if done:
                         c += 1
