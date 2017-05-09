@@ -47,7 +47,7 @@ class PolicyInModel:
                 # self.policy_action_float = tf.nn.softmax(tf.matmul(self.policy_h1, self.policy_w2, name='matmul1') + self.policy_b2)
 
                 # self.policy_w1 = tf.Variable([[0, 0, 0], [-1, 0, 1.]], name='policy_w1')
-                self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.action_dim], 0, 0.1), name='policy_w1')
+                self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.action_dim], 0.1, 1), name='policy_w1')
                 self.policy_action_float = tf.matmul(self.state, self.policy_w1, name='matmul1')
                 self.policy_action_softmax = tf.nn.softmax(self.policy_action_float)
                 self.policy_action = tf.argmax(self.policy_action_float, axis=1)[0]
@@ -118,12 +118,13 @@ class PolicyInModel:
         self.global_step = tf.Variable(0, trainable=False)
         self.learning_rate = tf.train.exponential_decay(self.initial_learning_rate, self.global_step,
                                                         20 * self.episode_max_iters, self.decay_rate)
-        self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
-        self.train_model = self.optimizer.minimize(self.model_loss, var_list=self.model_vars,
-                                                   global_step=self.global_step)
+        self.model_optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
+        self.policy_optimizer = tf.train.GradientDescentOptimizer(0.01)
+        self.train_model = self.model_optimizer.minimize(self.model_loss, var_list=self.model_vars,
+                                                         global_step=self.global_step)
         if self.on_policy_learning:
-            self.train_policy = self.optimizer.minimize(self.policy_loss, var_list=self.policy_vars,
-                                                        global_step=self.global_step)
+            self.train_policy = self.policy_optimizer.minimize(self.policy_loss, var_list=self.policy_vars,
+                                                              global_step=self.global_step)
 
         self.init = tf.global_variables_initializer()
         tf.summary.scalar("learning_rate", self.learning_rate)
@@ -212,6 +213,8 @@ class PolicyInModel:
 
                 if i % 50 == 0:
                     print("successes:", c, "iterations:", i)
+
+            print(self.policy_w1)
 
         if upload:
             env.close()
