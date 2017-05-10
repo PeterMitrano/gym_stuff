@@ -47,7 +47,7 @@ class PolicyInModel:
                 # self.policy_action_float = tf.nn.softmax(tf.matmul(self.policy_h1, self.policy_w2, name='matmul1') + self.policy_b2)
 
                 # self.policy_w1 = tf.Variable([[0, 0, 0], [-.001, 0, .001]], name='policy_w1')
-                self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.action_dim], 0, 0.1), name='policy_w1')
+                self.policy_w1 = tf.Variable([[0, 0, 0], np.random.randn(3)], name='policy_w1')
                 self.policy_action_float = tf.matmul(self.state, self.policy_w1, name='matmul1')
                 self.gumbel = -tf.log(-tf.log(tf.random_uniform([], 0, 1, tf.float32)), name='gumbel')
                 self.policy_temp = 0.1
@@ -122,12 +122,12 @@ class PolicyInModel:
         self.learning_rate = tf.train.exponential_decay(self.initial_learning_rate, self.global_step,
                                                         20 * self.episode_max_iters, self.decay_rate)
         self.model_optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
-        self.policy_optimizer = tf.train.GradientDescentOptimizer(0.01)
+        self.policy_optimizer = tf.train.GradientDescentOptimizer(0.1)
         self.train_model = self.model_optimizer.minimize(self.model_loss, var_list=self.model_vars,
                                                          global_step=self.global_step)
         if self.on_policy_learning:
             self.train_policy = self.policy_optimizer.minimize(self.policy_loss, var_list=self.policy_vars,
-                                                              global_step=self.global_step)
+                                                               global_step=self.global_step)
 
         self.init = tf.global_variables_initializer()
         tf.summary.scalar("learning_rate", self.learning_rate)
@@ -207,7 +207,7 @@ class PolicyInModel:
                     episode_iters += 1
 
                     # if i % 50 == 0:
-                        # env.render()
+                    # env.render()
 
                     if done:
                         if episode_iters < 199:
