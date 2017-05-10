@@ -20,8 +20,8 @@ class PolicyInModel:
         self.state_sizes = self.state_bounds[:, 1] - self.state_bounds[:, 0]
         self.action_dim = 3
         self.episode_max_iters = 400
-        # self.on_policy_learning = True
-        self.on_policy_learning = False
+        self.on_policy_learning = True
+        # self.on_policy_learning = False
 
         with tf.name_scope("fed_values"):
             self.state = tf.placeholder(tf.float32, shape=[1, self.state_dim], name='state')
@@ -171,6 +171,9 @@ class PolicyInModel:
             sess.run(self.init)
             c = 0
 
+            # wait a bit to learn env model
+            policy_train_start = 200
+
             for i in range(800):
                 episode_iters = 0
                 total_reward = 0
@@ -191,12 +194,12 @@ class PolicyInModel:
                     _, m_loss, next_state = sess.run([self.train_model, self.model_loss, self.predicted_next_state],
                                                      feed_dict)
                     # m_loss, next_state = sess.run([self.model_loss, self.predicted_next_state], feed_dict)
-                    if self.on_policy_learning:
+                    if self.on_policy_learning and i > policy_train_start:
                         p_loss, action = sess.run([self.policy_loss, self.policy_action],
                                                   feed_dict)
 
                     # comment this back in for off-policy learning
-                    if not self.on_policy_learning:
+                    if not self.on_policy_learning or i < policy_train_start:
                         e = np.random.rand()
 
                         # make random action X% of the time
