@@ -122,7 +122,7 @@ class PolicyInModel:
             tf.summary.histogram(var.name + '/gradient', grad)
 
         self.global_step = tf.Variable(0, trainable=False)
-        self.model_optimizer = tf.train.GradientDescentOptimizer(0.01)
+        self.model_optimizer = tf.train.GradientDescentOptimizer(1)
         self.policy_optimizer = tf.train.GradientDescentOptimizer(0.0001)
         self.train_model = self.model_optimizer.minimize(self.model_loss, var_list=self.model_vars,
                                                          global_step=self.global_step)
