@@ -46,10 +46,12 @@ class PolicyInModel:
                 # self.policy_b2 = tf.Variable(tf.constant(0.1, shape=[self.action_dim]), name='policy_b2')
                 # self.policy_action_float = tf.nn.softmax(tf.matmul(self.policy_h1, self.policy_w2, name='matmul1') + self.policy_b2)
 
-                # self.policy_w1 = tf.Variable([[0, 0, 0], [-1, 0, 1.]], name='policy_w1')
-                self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.action_dim], 0.1, 1), name='policy_w1')
+                # self.policy_w1 = tf.Variable([[0, 0, 0], [-.001, 0, .001]], name='policy_w1')
+                self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.action_dim], 0, 1e-2), name='policy_w1')
                 self.policy_action_float = tf.matmul(self.state, self.policy_w1, name='matmul1')
-                self.policy_action_softmax = tf.nn.softmax(self.policy_action_float)
+                self.gumbel = -tf.log(-tf.log(tf.random_uniform([], 0, 1, tf.float32)), name='gumbel')
+                self.policy_temp = 10
+                self.policy_action_softmax = tf.nn.softmax((self.policy_action_float + self.gumbel) / self.policy_temp)
                 self.policy_action = tf.argmax(self.policy_action_float, axis=1)[0]
                 self.policy_vars = [self.policy_w1]
 
@@ -214,7 +216,7 @@ class PolicyInModel:
                 if i % 50 == 0:
                     print("successes:", c, "iterations:", i)
 
-            print(self.policy_w1)
+            print(sess.run(self.policy_w1))
 
         if upload:
             env.close()
