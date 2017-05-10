@@ -84,13 +84,15 @@ class PolicyInModel:
             # fancy model
             self.model_h1_dim = 10
             self.model_w1 = tf.Variable(
-                tf.truncated_normal([self.state_dim + self.action_dim, self.model_h1_dim], 0, 0.01), name='model_w1')
+                tf.truncated_normal([self.state_dim + self.action_dim, self.model_h1_dim], 0, 0.1), name='model_w1')
             self.model_b1 = tf.Variable(tf.constant(0.1, shape=[self.model_h1_dim]), name='model_b1')
             self.model_h1 = tf.nn.relu(tf.matmul(self.model_input, self.model_w1) + self.model_b1)
-            self.model_w2 = tf.Variable(tf.truncated_normal([self.model_h1_dim, self.state_dim], 0, 0.01),
+            self.model_w2 = tf.Variable(tf.truncated_normal([self.model_h1_dim, self.state_dim], 0, 0.1),
                                         name='model_w2')
             self.model_b2 = tf.Variable(tf.constant(0.1, shape=[self.state_dim]), name='model_b2')
-            self.predicted_next_state = tf.matmul(self.model_h1, self.model_w2) + self.model_b2
+            self.predicted_next_state = tf.nn.sigmoid(
+                tf.matmul(self.model_h1, self.model_w2) + self.model_b2) * self.state_sizes + self.state_bounds[:, 0]
+
             self.model_vars = [self.model_w1, self.model_b1, self.model_w2, self.model_b2]
 
             tf.summary.histogram("model_w1", self.model_w1)
@@ -139,7 +141,6 @@ class PolicyInModel:
 
         self.merged_summary = tf.summary.merge_all()
 
-
     def main(self, upload=False):
         env = gym.make('MountainCar-v0')
         directory = '/tmp/' + os.path.basename(__file__) + '-' + str(int(time.time()))
@@ -187,7 +188,8 @@ class PolicyInModel:
                         self.reward: total_reward
                     }
 
-                    _, m_loss, next_state = sess.run([self.train_model, self.model_loss, self.predicted_next_state], feed_dict)
+                    _, m_loss, next_state = sess.run([self.train_model, self.model_loss, self.predicted_next_state],
+                                                     feed_dict)
                     # m_loss, next_state = sess.run([self.model_loss, self.predicted_next_state], feed_dict)
                     if self.on_policy_learning:
                         p_loss, action = sess.run([self.policy_loss, self.policy_action],
@@ -210,6 +212,8 @@ class PolicyInModel:
                     if episode_iters % 10 == 0:
                         summary, step = sess.run([self.merged_summary, self.global_step], feed_dict)
                         tb_writer.add_summary(summary, step)
+                        # if i % 10 == 0:
+                        #     print(sess.run(self.predicted_next_state, feed_dict),  observation, next_observation)
 
                     observation = next_observation
                     next_observation, reward, done, info = env.step(action)
