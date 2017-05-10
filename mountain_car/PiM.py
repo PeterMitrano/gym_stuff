@@ -66,11 +66,13 @@ class PolicyInModel:
                 tf.summary.scalar("manual_action", self.manual_action)
 
         with tf.name_scope('model'):
+            self.state_input = self.state / self.state_sizes
             if self.on_policy_learning:
                 self.action_input = self.policy_softmax
             else:
                 action_in = tf.one_hot(self.manual_action, self.action_dim, dtype=tf.float32, name='manual_action_float')
                 self.action_input = tf.expand_dims(action_in, axis=0)
+
             # hard coded shit
             # self.model_w1 = tf.Variable([[1.00, -0.0025], [1, 0], [-0.001, 0], [0, 0], [0.001, 0]], name='model_w1')
             # self.predicted_next_state = tf.matmul(self.model_input, self.model_w1)
@@ -81,7 +83,7 @@ class PolicyInModel:
                 self.model_state_dim = 4
                 self.model_w_state = tf.Variable(tf.truncated_normal([self.state_dim, self.model_state_dim], 0, 0.1), name='model_w_state')
                 self.model_b_state = tf.Variable(tf.constant(0.1, shape=[self.model_state_dim]), name='model_b_state')
-                self.model_state_h1 = tf.nn.tanh(tf.matmul(self.state / self.state_sizes, self.model_w_state) + self.model_b_state)
+                self.model_state_h1 = tf.nn.tanh(tf.matmul(self.state_input, self.model_w_state) + self.model_b_state)
 
             with tf.name_scope("model_action"):
                 self.model_action_dim = 4
