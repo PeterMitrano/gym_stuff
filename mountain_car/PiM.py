@@ -37,16 +37,15 @@ class PolicyInModel:
                 # self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.policy_h1_dim], 0, 0.1),
                 #                              name='policy_w1')
                 # self.policy_b1 = tf.Variable(tf.constant(0.1, shape=[self.policy_h1_dim]), name='policy_b1')
-                # self.policy_h1 = tf.nn.relu(tf.matmul(self.state, self.policy_w1, name='matmul1') + self.policy_b1,
-                #                             name='relu')
+                # self.policy_h1 = tf.nn.tanh(tf.matmul(self.state, self.policy_w1, name='matmul1') + self.policy_b1,
+                #                             name='tanh')
                 #
                 # self.policy_w2 = tf.Variable(tf.truncated_normal((self.policy_h1_dim, self.action_dim), 0, 0.1),
                 #                              name='policy_w2')
                 # self.policy_b2 = tf.Variable(tf.constant(0.1, shape=[self.action_dim]), name='policy_b2')
                 # self.policy_action_float = tf.nn.softmax(tf.matmul(self.policy_h1, self.policy_w2, name='matmul1') + self.policy_b2)
 
-                self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.action_dim], 0, 0.1),
-                                             name='policy_w1')
+                self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.action_dim], 0, 0.1), name='policy_w1')
                 self.policy_action_float = tf.matmul(self.state, self.policy_w1, name='matmul1')
                 self.gumbel = -tf.log(-tf.log(tf.random_uniform([], 0, 1, tf.float32)), name='gumbel')
                 self.policy_temp = 0.1
@@ -68,34 +67,41 @@ class PolicyInModel:
 
         with tf.name_scope('model'):
             if self.on_policy_learning:
-                self.model_input = tf.concat((self.state, self.policy_softmax), axis=1, name='concat')
+                self.action_input = self.policy_softmax
             else:
-                self.manual_action_one_hot = tf.expand_dims(
-                    tf.one_hot(self.manual_action, self.action_dim, dtype=tf.float32, name='manual_action_float'),
-                    axis=0)
-                self.model_input = tf.concat((self.state, self.manual_action_one_hot), axis=1, name='concat')
-
+                action_in = tf.one_hot(self.manual_action, self.action_dim, dtype=tf.float32, name='manual_action_float')
+                self.action_input = tf.expand_dims(action_in, axis=0)
             # hard coded shit
             # self.model_w1 = tf.Variable([[1.00, -0.0025], [1, 0], [-0.001, 0], [0, 0], [0.001, 0]], name='model_w1')
             # self.predicted_next_state = tf.matmul(self.model_input, self.model_w1)
             # self.model_vars = [self.model_w1]
 
             # fancy model
-            self.model_h1_dim = 10
-            self.model_w1 = tf.Variable(
-                tf.truncated_normal([self.state_dim + self.action_dim, self.model_h1_dim], 0, 0.1), name='model_w1')
-            self.model_b1 = tf.Variable(tf.constant(0.1, shape=[self.model_h1_dim]), name='model_b1')
-            self.model_h1 = tf.nn.relu(tf.matmul(self.model_input, self.model_w1) + self.model_b1)
-            self.model_w2 = tf.Variable(tf.truncated_normal([self.model_h1_dim, self.state_dim], 0, 0.1),
-                                        name='model_w2')
-            self.model_b2 = tf.Variable(tf.constant(0.1, shape=[self.state_dim]), name='model_b2')
-            self.predicted_next_state = tf.nn.sigmoid(
-                tf.matmul(self.model_h1, self.model_w2) + self.model_b2) * self.state_sizes + self.state_bounds[:, 0]
+            with tf.name_scope("model_state"):
+                self.model_state_dim = 4
+                self.model_w_state = tf.Variable(tf.truncated_normal([self.state_dim, self.model_state_dim], 0, 0.1), name='model_w_state')
+                self.model_b_state = tf.Variable(tf.constant(0.1, shape=[self.model_state_dim]), name='model_b_state')
+                self.model_state_h1 = tf.nn.tanh(tf.matmul(self.state / self.state_sizes, self.model_w_state) + self.model_b_state)
 
-            self.model_vars = [self.model_w1, self.model_b1, self.model_w2, self.model_b2]
+            with tf.name_scope("model_action"):
+                self.model_action_dim = 4
+                self.model_w_action = tf.Variable(tf.truncated_normal([self.action_dim, self.model_action_dim], 0, 0.1), name='model_w_action')
+                self.model_b_action = tf.Variable(tf.constant(0.1, shape=[self.model_action_dim]), name='model_b_action')
+                self.model_action_h1 = tf.nn.tanh(tf.matmul(self.action_input, self.model_w_action) + self.model_b_action)
 
-            tf.summary.histogram("model_w1", self.model_w1)
-            tf.summary.histogram("model_b1", self.model_b1)
+            with tf.name_scope("model_h2"):
+                self.model_h1 = tf.concat((self.model_action_h1, self.model_state_h1), axis=1)
+                self.model_w2 = tf.Variable(tf.truncated_normal([self.model_action_dim + self.model_state_dim, self.state_dim], 0, 0.1), name='model_w2')
+                self.model_b2 = tf.Variable(tf.constant(0.1, shape=[self.state_dim]), name='model_b2')
+                self.unadjusted_next_state = tf.matmul(self.model_h1, self.model_w2) + self.model_b2
+                self.predicted_next_state = tf.nn.sigmoid(self.unadjusted_next_state) * self.state_sizes + self.state_bounds[:, 0]
+
+            self.model_vars = [self.model_w_state, self.model_w_action, self.model_b_state, self.model_b_action, self.model_w2, self.model_b2]
+
+            tf.summary.histogram("model_w_state", self.model_w_state)
+            tf.summary.histogram("model_w_action", self.model_w_action)
+            tf.summary.histogram("model_b_state", self.model_b_state)
+            tf.summary.histogram("model_b)action", self.model_b_action)
             tf.summary.histogram("model_w2", self.model_w2)
             tf.summary.histogram("model_b2", self.model_b2)
             tf.summary.scalar("predicted_position", self.predicted_next_state[0][0])
