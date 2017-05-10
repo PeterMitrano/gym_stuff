@@ -164,7 +164,7 @@ class PolicyInModel:
             sess.run(self.init)
             c = 0
 
-            for i in range(1500):
+            for i in range(800):
                 episode_iters = 0
                 total_reward = 0
                 observation = env.reset()
