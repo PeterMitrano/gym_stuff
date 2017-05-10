@@ -19,8 +19,8 @@ class PolicyInModel:
         self.state_bounds = np.array([[-1.2, 0.6], [-0.07, 0.07]])
         self.state_sizes = self.state_bounds[:, 1] - self.state_bounds[:, 0]
         self.action_dim = 3
-        # self.on_policy_learning = True
-        self.on_policy_learning = False
+        self.on_policy_learning = True
+        # self.on_policy_learning = False
 
         with tf.name_scope("fed_values"):
             self.state = tf.placeholder(tf.float32, shape=[1, self.state_dim], name='state')
@@ -33,30 +33,25 @@ class PolicyInModel:
 
         if self.on_policy_learning:
             with tf.name_scope('policy'):
-                # self.policy_h1_dim = 5
-                # self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.policy_h1_dim], 0, 0.1),
-                #                              name='policy_w1')
-                # self.policy_b1 = tf.Variable(tf.constant(0.1, shape=[self.policy_h1_dim]), name='policy_b1')
-                # self.policy_h1 = tf.nn.tanh(tf.matmul(self.state, self.policy_w1, name='matmul1') + self.policy_b1,
-                #                             name='tanh')
-                #
-                # self.policy_w2 = tf.Variable(tf.truncated_normal((self.policy_h1_dim, self.action_dim), 0, 0.1),
-                #                              name='policy_w2')
-                # self.policy_b2 = tf.Variable(tf.constant(0.1, shape=[self.action_dim]), name='policy_b2')
-                # self.policy_action_float = tf.nn.softmax(tf.matmul(self.policy_h1, self.policy_w2, name='matmul1') + self.policy_b2)
+                self.policy_h1_dim = 5
+                self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.policy_h1_dim], 0, 0.1), name='policy_w1')
+                self.policy_b1 = tf.Variable(tf.constant(0.1, shape=[self.policy_h1_dim]), name='policy_b1')
+                self.policy_h1 = tf.nn.tanh(tf.matmul(self.state, self.policy_w1, name='matmul1') + self.policy_b1, name='tanh')
 
-                self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.action_dim], 0, 0.1), name='policy_w1')
-                self.policy_action_float = tf.matmul(self.state, self.policy_w1, name='matmul1')
+                self.policy_w2 = tf.Variable(tf.truncated_normal((self.policy_h1_dim, self.action_dim), 0, 0.1), name='policy_w2')
+                self.policy_b2 = tf.Variable(tf.constant(0.1, shape=[self.action_dim]), name='policy_b2')
+                self.policy_action_float = tf.matmul(self.policy_h1, self.policy_w2, name='matmul2') + self.policy_b2
+
                 self.gumbel = -tf.log(-tf.log(tf.random_uniform([], 0, 1, tf.float32)), name='gumbel')
-                self.policy_temp = 0.1
+                self.policy_temp = 1
                 self.policy_softmax = tf.nn.softmax((self.policy_action_float + self.gumbel) / self.policy_temp)
                 self.policy_action = tf.argmax(self.policy_action_float, axis=1)[0]
                 self.policy_vars = [self.policy_w1]
 
                 tf.summary.histogram('policy_w1', self.policy_w1)
-                # tf.summary.histogram('policy_b1', self.policy_b1)
-                # tf.summary.histogram('policy_w2', self.policy_w2)
-                # tf.summary.histogram('policy_b2', self.policy_b2)
+                tf.summary.histogram('policy_b1', self.policy_b1)
+                tf.summary.histogram('policy_w2', self.policy_w2)
+                tf.summary.histogram('policy_b2', self.policy_b2)
                 tf.summary.histogram('policy_softmax', self.policy_softmax)
 
         with tf.name_scope("action"):
@@ -110,9 +105,9 @@ class PolicyInModel:
             tf.summary.scalar("predicted_velocity", self.predicted_next_state[0][1])
 
         with tf.name_scope("loss"):
-            self.state_change = self.predicted_next_state - self.state
-            self.policy_loss = -tf.nn.l2_loss(self.state_change, name='policy_loss')
-            # self.policy_loss = 0.5 - self.predicted_next_state[0][0]
+            # self.state_change = self.predicted_next_state - self.state
+            # self.policy_loss = -tf.nn.l2_loss(self.state_change, name='policy_loss')
+            self.policy_loss = 0.5 - self.predicted_next_state[0][0]
             self.model_loss = tf.nn.l2_loss((self.predicted_next_state - self.true_next_state), name='model_loss')
 
             tf.summary.scalar("policy_loss", self.policy_loss)
