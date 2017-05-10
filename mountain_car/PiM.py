@@ -19,9 +19,8 @@ class PolicyInModel:
         self.state_bounds = np.array([[-1.2, 0.6], [-0.07, 0.07]])
         self.state_sizes = self.state_bounds[:, 1] - self.state_bounds[:, 0]
         self.action_dim = 3
-        self.episode_max_iters = 400
-        self.on_policy_learning = True
-        # self.on_policy_learning = False
+        # self.on_policy_learning = True
+        self.on_policy_learning = False
 
         with tf.name_scope("fed_values"):
             self.state = tf.placeholder(tf.float32, shape=[1, self.state_dim], name='state')
@@ -105,9 +104,8 @@ class PolicyInModel:
         with tf.name_scope("loss"):
             self.state_change = self.predicted_next_state - self.state
             self.policy_loss = -tf.nn.l2_loss(self.state_change, name='policy_loss')
-            alpha = 1e-3
-            self.model_loss = tf.nn.l2_loss((self.predicted_next_state - self.true_next_state) / self.state_sizes,
-                                            name='model_loss') + alpha * tf.nn.l2_loss(self.model_w1)
+            # self.policy_loss = 0.5 - self.predicted_next_state[0][0]
+            self.model_loss = tf.nn.l2_loss((self.predicted_next_state - self.true_next_state), name='model_loss')
 
             tf.summary.scalar("policy_loss", self.policy_loss)
             tf.summary.scalar("model_loss", self.model_loss)
@@ -123,12 +121,8 @@ class PolicyInModel:
         for grad, var in grads:
             tf.summary.histogram(var.name + '/gradient', grad)
 
-        self.initial_learning_rate = 0.08
-        self.decay_rate = 0.95
         self.global_step = tf.Variable(0, trainable=False)
-        self.learning_rate = tf.train.exponential_decay(self.initial_learning_rate, self.global_step,
-                                                        20 * self.episode_max_iters, self.decay_rate)
-        self.model_optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
+        self.model_optimizer = tf.train.GradientDescentOptimizer(0.01)
         self.policy_optimizer = tf.train.GradientDescentOptimizer(0.0001)
         self.train_model = self.model_optimizer.minimize(self.model_loss, var_list=self.model_vars,
                                                          global_step=self.global_step)
@@ -137,7 +131,6 @@ class PolicyInModel:
                                                                global_step=self.global_step)
 
         self.init = tf.global_variables_initializer()
-        tf.summary.scalar("learning_rate", self.learning_rate)
 
         self.merged_summary = tf.summary.merge_all()
 
@@ -171,10 +164,7 @@ class PolicyInModel:
             sess.run(self.init)
             c = 0
 
-            # wait a bit to learn env model
-            policy_train_start = 200
-
-            for i in range(800):
+            for i in range(500):
                 episode_iters = 0
                 total_reward = 0
                 observation = env.reset()
@@ -194,16 +184,16 @@ class PolicyInModel:
                     _, m_loss, next_state = sess.run([self.train_model, self.model_loss, self.predicted_next_state],
                                                      feed_dict)
                     # m_loss, next_state = sess.run([self.model_loss, self.predicted_next_state], feed_dict)
-                    if self.on_policy_learning and i > policy_train_start:
-                        p_loss, action = sess.run([self.policy_loss, self.policy_action],
-                                                  feed_dict)
+
+                    if self.on_policy_learning:
+                        p_loss, action = sess.run([self.policy_loss, self.policy_action], feed_dict)
 
                     # comment this back in for off-policy learning
-                    if not self.on_policy_learning or i < policy_train_start:
+                    if not self.on_policy_learning:
                         e = np.random.rand()
 
                         # make random action X% of the time
-                        if e > 0.3:
+                        if e > 0.4:
                             # sensible manual policy based only on velocity
                             if observation[1] < 0:
                                 action = 0
@@ -215,8 +205,6 @@ class PolicyInModel:
                     if episode_iters % 10 == 0:
                         summary, step = sess.run([self.merged_summary, self.global_step], feed_dict)
                         tb_writer.add_summary(summary, step)
-                        # if i % 10 == 0:
-                        #     print(sess.run(self.predicted_next_state, feed_dict),  observation, next_observation)
 
                     observation = next_observation
                     next_observation, reward, done, info = env.step(action)
