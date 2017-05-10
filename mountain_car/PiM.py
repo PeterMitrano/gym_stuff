@@ -47,11 +47,11 @@ class PolicyInModel:
                 # self.policy_action_float = tf.nn.softmax(tf.matmul(self.policy_h1, self.policy_w2, name='matmul1') + self.policy_b2)
 
                 # self.policy_w1 = tf.Variable([[0, 0, 0], [-.001, 0, .001]], name='policy_w1')
-                self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.action_dim], 0, 1e-2), name='policy_w1')
+                self.policy_w1 = tf.Variable(tf.truncated_normal([self.state_dim, self.action_dim], 0, 0.1), name='policy_w1')
                 self.policy_action_float = tf.matmul(self.state, self.policy_w1, name='matmul1')
                 self.gumbel = -tf.log(-tf.log(tf.random_uniform([], 0, 1, tf.float32)), name='gumbel')
                 self.policy_temp = 10
-                self.policy_action_softmax = tf.nn.softmax((self.policy_action_float + self.gumbel) / self.policy_temp)
+                self.policy_softmax = tf.nn.softmax((self.policy_action_float + self.gumbel) / self.policy_temp)
                 self.policy_action = tf.argmax(self.policy_action_float, axis=1)[0]
                 self.policy_vars = [self.policy_w1]
 
@@ -59,6 +59,7 @@ class PolicyInModel:
                 # tf.summary.histogram('policy_b1', self.policy_b1)
                 # tf.summary.histogram('policy_w2', self.policy_w2)
                 # tf.summary.histogram('policy_b2', self.policy_b2)
+                tf.summary.histogram('policy_softmax', self.policy_softmax)
 
         with tf.name_scope("action"):
             if self.on_policy_learning:
@@ -68,7 +69,7 @@ class PolicyInModel:
 
         with tf.name_scope('model'):
             if self.on_policy_learning:
-                self.model_input = tf.concat((self.state, self.policy_action_softmax), axis=1, name='concat')
+                self.model_input = tf.concat((self.state, self.policy_softmax), axis=1, name='concat')
             else:
                 self.manual_action_one_hot = tf.expand_dims(
                     tf.one_hot(self.manual_action, self.action_dim, dtype=tf.float32, name='manual_action_float'),
